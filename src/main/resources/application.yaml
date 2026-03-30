@@ -1,3 +1,27 @@
 spring:
   application:
-    name: backend
+    name: equipment-management
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${APP_SMTP_USER:}
+    password: ${APP_SMTP_PASS:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+#  jackson:
+#    serialization:
+#      write-dates-as-timestamps: false
+
+app:
+  data-dir: ${APP_DATA_DIR:data}
+  username: ${APP_USERNAME:admin}
+  password: ${APP_PASSWORD:admin}
+  smtp-user: ${APP_SMTP_USER:}
+  smtp-pass: ${APP_SMTP_PASS:}
+  smtp-from: ${APP_SMTP_FROM:"Equipment Management <noreply@example.com>"}
+  app-url: ${APP_URL:http://localhost:8080}
+  email-recipient: ${APP_EMAIL_RECIPIENT:mr.paul.woods@gmail.com}
+
+scheduling:
+  enabled: true
