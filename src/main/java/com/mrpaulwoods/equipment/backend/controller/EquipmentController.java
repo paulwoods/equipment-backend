@@ -1,14 +1,23 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.EquipmentRequest;
+import com.mrpaulwoods.equipment.backend.dto.ImportRequest;
+import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
+import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
+import com.mrpaulwoods.equipment.backend.service.ImportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.exc.StreamReadException;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,11 +27,31 @@ import java.util.UUID;
 public class EquipmentController {
 
     private final EquipmentService equipmentService;
+    private final ImportService importService;
+    private final ObjectMapper objectMapper;
 
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping
     public List<Equipment> getAll() {
         return equipmentService.getAll();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ImportResult importEquipment(@RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new ImportEquipmentException("Import file is empty");
+        }
+        List<ImportRequest.EquipmentImport> items;
+        try {
+            items = objectMapper.readValue(
+                    file.getInputStream(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, ImportRequest.EquipmentImport.class)
+            );
+        } catch (StreamReadException e) {
+            throw new ImportEquipmentException("Invalid JSON in import file: " + e.getOriginalMessage());
+        }
+        return importService.importEquipment(items);
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")

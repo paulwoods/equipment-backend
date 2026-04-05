@@ -19,6 +19,12 @@ public class GlobalExceptionHandler {
         return Map.of("error", ex.getMessage());
     }
 
+    @ExceptionHandler(ImportEquipmentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleImportEquipment(ImportEquipmentException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
     @ExceptionHandler(ProcedureNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleProcedureNotFound(ProcedureNotFoundException ex) {

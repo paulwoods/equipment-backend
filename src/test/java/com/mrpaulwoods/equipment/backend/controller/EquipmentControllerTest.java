@@ -1,9 +1,12 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
+import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
+import com.mrpaulwoods.equipment.backend.service.ImportService;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,8 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,15 +37,22 @@ class EquipmentControllerTest {
     @Mock
     private EquipmentService equipmentService;
 
+    @Mock
+    private ImportService importService;
+
     @InjectMocks
     private EquipmentController equipmentController;
 
     private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
 
     private static final UUID EQ_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
+        // Inject real ObjectMapper into the controller (it's a final field via @RequiredArgsConstructor)
+        equipmentController = new EquipmentController(equipmentService, importService, objectMapper);
         mockMvc = MockMvcBuilders.standaloneSetup(equipmentController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -161,5 +173,71 @@ class EquipmentControllerTest {
 
         mockMvc.perform(delete("/api/equipment/{id}", missing))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void importEquipment_withValidJson_returns200WithCounts() throws Exception {
+        ImportResult result = new ImportResult(2, 3, 5);
+        when(importService.importEquipment(any())).thenReturn(result);
+
+        String json = """
+                [
+                  {
+                    "manufacturer": "Dell",
+                    "modelNumber": "G15",
+                    "status": "Active",
+                    "purchaseDate": "2020-12-28",
+                    "procedures": []
+                  }
+                ]
+                """;
+
+        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", json.getBytes());
+
+        mockMvc.perform(multipart("/api/equipment/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.equipmentImported").value(2))
+                .andExpect(jsonPath("$.proceduresImported").value(3))
+                .andExpect(jsonPath("$.historyImported").value(5));
+    }
+
+    @Test
+    void importEquipment_withEmptyFile_returns400() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", new byte[0]);
+
+        mockMvc.perform(multipart("/api/equipment/import").file(file))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Import file is empty"));
+    }
+
+    @Test
+    void importEquipment_withInvalidJson_returns400() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", "not json".getBytes());
+
+        mockMvc.perform(multipart("/api/equipment/import").file(file))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void importEquipment_whenServiceThrowsValidationError_returns400() throws Exception {
+        when(importService.importEquipment(any()))
+                .thenThrow(new ImportEquipmentException("Equipment[0]: manufacturer is required"));
+
+        String json = """
+                [
+                  {
+                    "modelNumber": "G15",
+                    "status": "Active",
+                    "purchaseDate": "2020-12-28"
+                  }
+                ]
+                """;
+
+        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", json.getBytes());
+
+        mockMvc.perform(multipart("/api/equipment/import").file(file))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Equipment[0]: manufacturer is required"));
     }
 }
