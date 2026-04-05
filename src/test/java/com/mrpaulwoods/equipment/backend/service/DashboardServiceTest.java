@@ -21,6 +21,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("SequencedCollectionMethodCanBeUsed")
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
