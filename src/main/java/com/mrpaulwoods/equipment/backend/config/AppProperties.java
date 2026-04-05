@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app")
 @Data
 public class AppProperties {
-    private String jwtSecret = "changeme-use-a-32-char-secret-here!!";
+    private String jwtSecret = "changeme-use-a-32-char-secret-here!!!!";
     private long jwtExpirationMs = 3_600_000L;
     private String smtpUser;
     private String smtpPass;
