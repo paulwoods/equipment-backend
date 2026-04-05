@@ -46,6 +46,7 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
+            assert userDetails != null;
             String accessToken = jwtService.generateToken(userDetails);
 
             User user = userRepository.findByEmail(request.getEmail())
@@ -62,7 +63,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<Void> logout(Authentication authentication, HttpServletResponse response) {
         if (authentication != null) {
             userRepository.findByEmail(authentication.getName())
                     .ifPresent(refreshTokenService::deleteByUser);
@@ -98,6 +99,7 @@ public class AuthController {
         }
         String email = authentication.getName();
         String role = authentication.getAuthorities().iterator().next().getAuthority();
+        assert role != null;
         return ResponseEntity.ok(Map.of("email", email, "role", role));
     }
 

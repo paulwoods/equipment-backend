@@ -5,7 +5,6 @@ import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
-import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,9 +46,6 @@ class AuthControllerTest {
 
     @Mock
     private RefreshTokenService refreshTokenService;
-
-    @Mock
-    private UserDetailsServiceImpl userDetailsService;
 
     @Mock
     private UserRepository userRepository;
@@ -128,7 +124,7 @@ class AuthControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("admin@example.com");
-        when(auth.getAuthorities()).thenAnswer(inv ->
+        when(auth.getAuthorities()).thenAnswer(_ ->
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
         mockMvc.perform(get("/api/auth/me").principal(auth))
