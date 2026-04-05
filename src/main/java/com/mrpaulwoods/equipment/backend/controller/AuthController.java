@@ -1,8 +1,8 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
-import com.mrpaulwoods.equipment.backend.model.RefreshToken;
-import com.mrpaulwoods.equipment.backend.model.User;
+import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;

@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.ProcedureRequest;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.service.ProcedureService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.model.RefreshToken;
-import com.mrpaulwoods.equipment.backend.model.User;
+import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.util;
 
-import com.mrpaulwoods.equipment.backend.model.Perform;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.entity.Perform;
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

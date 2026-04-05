@@ -1,8 +1,8 @@
 package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
-import com.mrpaulwoods.equipment.backend.model.Equipment;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.entity.Equipment;
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.util.DueDetails;
 import lombok.RequiredArgsConstructor;

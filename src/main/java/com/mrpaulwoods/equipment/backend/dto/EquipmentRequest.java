@@ -1,6 +1,6 @@
 package com.mrpaulwoods.equipment.backend.dto;
 
-import com.mrpaulwoods.equipment.backend.model.EquipmentStatus;
+import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 

@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.model.Perform;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.entity.Perform;
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.PerformRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

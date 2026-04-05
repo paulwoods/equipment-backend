@@ -1,6 +1,6 @@
 package com.mrpaulwoods.equipment.backend.repository;
 
-import com.mrpaulwoods.equipment.backend.model.Equipment;
+import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 

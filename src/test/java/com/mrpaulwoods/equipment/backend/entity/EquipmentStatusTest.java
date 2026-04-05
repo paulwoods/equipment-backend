@@ -1,5 +1,6 @@
-package com.mrpaulwoods.equipment.backend.model;
+package com.mrpaulwoods.equipment.backend.entity;
 
+import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

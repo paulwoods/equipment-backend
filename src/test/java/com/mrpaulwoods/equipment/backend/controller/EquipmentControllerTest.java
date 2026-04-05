@@ -1,10 +1,10 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
-import com.mrpaulwoods.equipment.backend.model.Equipment;
-import com.mrpaulwoods.equipment.backend.model.EquipmentStatus;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
+import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

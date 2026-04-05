@@ -1,5 +1,6 @@
-package com.mrpaulwoods.equipment.backend.model;
+package com.mrpaulwoods.equipment.backend.entity;
 
+import com.mrpaulwoods.equipment.backend.util.Role;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "app_user")
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 public class User {

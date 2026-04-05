@@ -2,9 +2,9 @@ package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.UserRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
-import com.mrpaulwoods.equipment.backend.model.Role;
-import com.mrpaulwoods.equipment.backend.model.User;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
+import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

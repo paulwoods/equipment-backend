@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
-import com.mrpaulwoods.equipment.backend.model.Perform;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

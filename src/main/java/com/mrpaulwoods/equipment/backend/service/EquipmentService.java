@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.service;
 
+import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
-import com.mrpaulwoods.equipment.backend.model.Equipment;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

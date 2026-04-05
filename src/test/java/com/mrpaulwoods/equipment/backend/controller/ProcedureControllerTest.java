@@ -1,8 +1,8 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
 import com.mrpaulwoods.equipment.backend.service.ProcedureService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

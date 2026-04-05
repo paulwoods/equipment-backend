@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.PerformRequest;
-import com.mrpaulwoods.equipment.backend.model.Perform;
+import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

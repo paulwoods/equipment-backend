@@ -1,11 +1,11 @@
 package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
-import com.mrpaulwoods.equipment.backend.model.Equipment;
-import com.mrpaulwoods.equipment.backend.model.EquipmentStatus;
-import com.mrpaulwoods.equipment.backend.model.Perform;
-import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.entity.Equipment;
+import com.mrpaulwoods.equipment.backend.entity.Perform;
+import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
+import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

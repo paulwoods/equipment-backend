@@ -1,5 +1,6 @@
-package com.mrpaulwoods.equipment.backend.model;
+package com.mrpaulwoods.equipment.backend.entity;
 
+import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

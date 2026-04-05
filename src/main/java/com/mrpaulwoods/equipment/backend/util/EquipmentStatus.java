@@ -1,4 +1,4 @@
-package com.mrpaulwoods.equipment.backend.model;
+package com.mrpaulwoods.equipment.backend.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

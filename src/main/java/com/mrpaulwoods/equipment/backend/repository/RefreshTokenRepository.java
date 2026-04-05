@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.repository;
 
-import com.mrpaulwoods.equipment.backend.model.RefreshToken;
-import com.mrpaulwoods.equipment.backend.model.User;
+import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

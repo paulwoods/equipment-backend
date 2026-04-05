@@ -1,4 +1,4 @@
-package com.mrpaulwoods.equipment.backend.model;
+package com.mrpaulwoods.equipment.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;

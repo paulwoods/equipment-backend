@@ -2,8 +2,8 @@ package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.UserRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
-import com.mrpaulwoods.equipment.backend.model.Role;
 import com.mrpaulwoods.equipment.backend.service.UserService;
+import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

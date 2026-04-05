@@ -1,13 +1,13 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.model.RefreshToken;
-import com.mrpaulwoods.equipment.backend.model.Role;
-import com.mrpaulwoods.equipment.backend.model.User;
+import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import com.mrpaulwoods.equipment.backend.service.UserService;
+import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
