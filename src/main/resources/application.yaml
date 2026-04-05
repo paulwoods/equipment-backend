@@ -3,9 +3,9 @@ spring:
   application:
     name: equipment-management
   datasource:
-    url: jdbc:postgresql://postgresql.woods.local:5432/postgres
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgresql.woods.local:5432/postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -14,11 +14,14 @@ spring:
     open-in-view: true
   flyway:
     enabled: true
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgresql.woods.local:5432/postgres}
+    user: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${APP_SMTP_USER:}
-    password: ${APP_SMTP_PASS:}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
