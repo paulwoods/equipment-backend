@@ -6,6 +6,7 @@ import com.mrpaulwoods.equipment.backend.service.EquipmentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,16 +19,19 @@ public class EquipmentController {
 
     private final EquipmentService equipmentService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping
     public List<Equipment> getAll() {
         return equipmentService.getAll();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping("/{id}")
     public Equipment getById(@PathVariable UUID id) {
         return equipmentService.getById(id);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Equipment create(@Valid @RequestBody EquipmentRequest request) {
@@ -35,12 +39,14 @@ public class EquipmentController {
         return equipmentService.create(equipment);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public Equipment update(@PathVariable UUID id, @Valid @RequestBody EquipmentRequest request) {
         Equipment equipment = toEquipment(request);
         return equipmentService.update(id, equipment);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {

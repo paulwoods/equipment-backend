@@ -27,8 +27,8 @@ spring:
       mail.smtp.starttls.enable: true
 
 app:
-  username: ${APP_USERNAME:admin}
-  password: ${APP_PASSWORD:admin}
+  jwt-secret: ${APP_JWT_SECRET:changeme-use-a-32-char-secret-here!!}
+  jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
   smtp-user: ${APP_SMTP_USER:}
   smtp-pass: ${APP_SMTP_PASS:}
   smtp-from: ${APP_SMTP_FROM:"Equipment Management <noreply@example.com>"}
