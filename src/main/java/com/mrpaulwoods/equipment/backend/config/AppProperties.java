@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AppProperties {
     private String username;
     private String password;
-    private String dataDir = "data";
     private String smtpUser;
     private String smtpPass;
     private String smtpFrom;

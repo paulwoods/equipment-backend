@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/equipment/{equipmentId}/procedures/{procedureId}/history")
@@ -18,15 +19,15 @@ public class PerformHistoryController {
     private final PerformHistoryService performHistoryService;
 
     @GetMapping
-    public List<Perform> getHistory(@PathVariable String equipmentId,
-                                    @PathVariable String procedureId) {
+    public List<Perform> getHistory(@PathVariable UUID equipmentId,
+                                    @PathVariable UUID procedureId) {
         return performHistoryService.getHistory(equipmentId, procedureId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Perform record(@PathVariable String equipmentId,
-                          @PathVariable String procedureId,
+    public Perform record(@PathVariable UUID equipmentId,
+                          @PathVariable UUID procedureId,
                           @Valid @RequestBody PerformRequest request) {
         Perform perform = new Perform();
         perform.setDate(request.date());

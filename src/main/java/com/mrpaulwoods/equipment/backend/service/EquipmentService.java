@@ -1,87 +1,54 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.model.Equipment;
-import com.mrpaulwoods.equipment.backend.util.IdGenerator;
+import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
+@Transactional
 public class EquipmentService {
 
-    private final AppProperties appProperties;
-    private final ObjectMapper objectMapper;
+    private final EquipmentRepository equipmentRepository;
 
-    private Path dataFile() {
-        return Path.of(appProperties.getDataDir(), "equipment.json");
+    @Transactional(readOnly = true)
+    public List<Equipment> getAll() {
+        return equipmentRepository.findAll();
     }
 
-    public synchronized List<Equipment> getAll() {
-        Path file = dataFile();
-        if (!Files.exists(file)) {
-            return new ArrayList<>();
-        }
-        return objectMapper.readValue(file.toFile(), new TypeReference<List<Equipment>>() {
-        });
-    }
-
-    public Equipment getById(String id) {
-        return getAll().stream()
-                .filter(e -> e.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new EquipmentNotFoundException(id));
+    @Transactional(readOnly = true)
+    public Equipment getById(UUID id) {
+        return equipmentRepository.findById(id)
+                .orElseThrow(() -> new EquipmentNotFoundException(id.toString()));
     }
 
     public Equipment create(Equipment equipment) {
-        equipment.setId(IdGenerator.generate());
-        List<Equipment> all = getAll();
-        all.add(equipment);
-        save(all);
-        return equipment;
+        return equipmentRepository.save(equipment);
     }
 
-    public Equipment update(String id, Equipment updated) {
-        List<Equipment> all = getAll();
-        int index = indexOf(all, id);
-        updated.setId(id);
-        all.set(index, updated);
-        save(all);
-        return updated;
+    public Equipment update(UUID id, Equipment updated) {
+        Equipment existing = getById(id);
+        existing.setManufacturer(updated.getManufacturer());
+        existing.setModelNumber(updated.getModelNumber());
+        existing.setSerialNumber(updated.getSerialNumber());
+        existing.setAssetTag(updated.getAssetTag());
+        existing.setLocation(updated.getLocation());
+        existing.setStatus(updated.getStatus());
+        existing.setDescription(updated.getDescription());
+        existing.setPurchaseDate(updated.getPurchaseDate());
+        return equipmentRepository.save(existing);
     }
 
-    public void delete(String id) {
-        List<Equipment> all = getAll();
-        indexOf(all, id); // validates existence
-        all.removeIf(e -> e.getId().equals(id));
-        save(all);
-    }
-
-    public synchronized void save(List<Equipment> equipment) {
-        Path file = dataFile();
-        try {
-            Files.createDirectories(file.getParent());
-            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), equipment);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to save equipment data", e);
+    public void delete(UUID id) {
+        if (!equipmentRepository.existsById(id)) {
+            throw new EquipmentNotFoundException(id.toString());
         }
-    }
-
-    private int indexOf(List<Equipment> all, String id) {
-        for (int i = 0; i < all.size(); i++) {
-            if (all.get(i).getId().equals(id)) return i;
-        }
-        throw new EquipmentNotFoundException(id);
+        equipmentRepository.deleteById(id);
     }
 }

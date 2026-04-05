@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/equipment")
@@ -23,7 +24,7 @@ public class EquipmentController {
     }
 
     @GetMapping("/{id}")
-    public Equipment getById(@PathVariable String id) {
+    public Equipment getById(@PathVariable UUID id) {
         return equipmentService.getById(id);
     }
 
@@ -35,14 +36,14 @@ public class EquipmentController {
     }
 
     @PutMapping("/{id}")
-    public Equipment update(@PathVariable String id, @Valid @RequestBody EquipmentRequest request) {
+    public Equipment update(@PathVariable UUID id, @Valid @RequestBody EquipmentRequest request) {
         Equipment equipment = toEquipment(request);
         return equipmentService.update(id, equipment);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String id) {
+    public void delete(@PathVariable UUID id) {
         equipmentService.delete(id);
     }
 

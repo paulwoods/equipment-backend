@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,6 +37,8 @@ class EquipmentControllerTest {
 
     private MockMvc mockMvc;
 
+    private static final UUID EQ_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(equipmentController)
@@ -45,7 +48,7 @@ class EquipmentControllerTest {
 
     private Equipment sampleEquipment() {
         Equipment e = new Equipment();
-        e.setId("eq-1");
+        e.setId(EQ_ID);
         e.setManufacturer("Acme");
         e.setModelNumber("X100");
         e.setSerialNumber("SN-001");
@@ -60,27 +63,28 @@ class EquipmentControllerTest {
 
         mockMvc.perform(get("/api/equipment"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("eq-1"))
+                .andExpect(jsonPath("$[0].id").value(EQ_ID.toString()))
                 .andExpect(jsonPath("$[0].manufacturer").value("Acme"));
     }
 
     @Test
     void getById_whenFound_returnsEquipment() throws Exception {
-        when(equipmentService.getById("eq-1")).thenReturn(sampleEquipment());
+        when(equipmentService.getById(EQ_ID)).thenReturn(sampleEquipment());
 
-        mockMvc.perform(get("/api/equipment/eq-1"))
+        mockMvc.perform(get("/api/equipment/{id}", EQ_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("eq-1"))
+                .andExpect(jsonPath("$.id").value(EQ_ID.toString()))
                 .andExpect(jsonPath("$.modelNumber").value("X100"));
     }
 
     @Test
     void getById_whenNotFound_returns404() throws Exception {
-        when(equipmentService.getById("missing")).thenThrow(new EquipmentNotFoundException("missing"));
+        UUID missing = UUID.randomUUID();
+        when(equipmentService.getById(missing)).thenThrow(new EquipmentNotFoundException(missing.toString()));
 
-        mockMvc.perform(get("/api/equipment/missing"))
+        mockMvc.perform(get("/api/equipment/{id}", missing))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Equipment not found: missing"));
+                .andExpect(jsonPath("$.error").value("Equipment not found: " + missing));
     }
 
     @Test
@@ -100,7 +104,7 @@ class EquipmentControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value("eq-1"));
+                .andExpect(jsonPath("$.id").value(EQ_ID.toString()));
     }
 
     @Test
@@ -122,7 +126,7 @@ class EquipmentControllerTest {
     void update_withValidBody_returnsUpdatedEquipment() throws Exception {
         Equipment updated = sampleEquipment();
         updated.setManufacturer("NewCorp");
-        when(equipmentService.update(eq("eq-1"), any())).thenReturn(updated);
+        when(equipmentService.update(eq(EQ_ID), any())).thenReturn(updated);
 
         String body = """
                 {
@@ -133,7 +137,7 @@ class EquipmentControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/equipment/eq-1")
+        mockMvc.perform(put("/api/equipment/{id}", EQ_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -142,19 +146,20 @@ class EquipmentControllerTest {
 
     @Test
     void delete_whenFound_returns204() throws Exception {
-        doNothing().when(equipmentService).delete("eq-1");
+        doNothing().when(equipmentService).delete(EQ_ID);
 
-        mockMvc.perform(delete("/api/equipment/eq-1"))
+        mockMvc.perform(delete("/api/equipment/{id}", EQ_ID))
                 .andExpect(status().isNoContent());
 
-        verify(equipmentService).delete("eq-1");
+        verify(equipmentService).delete(EQ_ID);
     }
 
     @Test
     void delete_whenNotFound_returns404() throws Exception {
-        doThrow(new EquipmentNotFoundException("missing")).when(equipmentService).delete("missing");
+        UUID missing = UUID.randomUUID();
+        doThrow(new EquipmentNotFoundException(missing.toString())).when(equipmentService).delete(missing);
 
-        mockMvc.perform(delete("/api/equipment/missing"))
+        mockMvc.perform(delete("/api/equipment/{id}", missing))
                 .andExpect(status().isNotFound());
     }
 }

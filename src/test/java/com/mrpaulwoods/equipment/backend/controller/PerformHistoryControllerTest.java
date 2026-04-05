@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -35,6 +36,10 @@ class PerformHistoryControllerTest {
 
     private MockMvc mockMvc;
 
+    private static final UUID EQ_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID PROC_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID PERF_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(performHistoryController)
@@ -44,7 +49,7 @@ class PerformHistoryControllerTest {
 
     private Perform samplePerform() {
         Perform p = new Perform();
-        p.setId("perf-1");
+        p.setId(PERF_ID);
         p.setDate(LocalDate.of(2024, 6, 1));
         p.setNotes("Completed without issues");
         return p;
@@ -52,17 +57,17 @@ class PerformHistoryControllerTest {
 
     @Test
     void getHistory_returnsPerformList() throws Exception {
-        when(performHistoryService.getHistory("eq-1", "proc-1")).thenReturn(List.of(samplePerform()));
+        when(performHistoryService.getHistory(EQ_ID, PROC_ID)).thenReturn(List.of(samplePerform()));
 
-        mockMvc.perform(get("/api/equipment/eq-1/procedures/proc-1/history"))
+        mockMvc.perform(get("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("perf-1"))
+                .andExpect(jsonPath("$[0].id").value(PERF_ID.toString()))
                 .andExpect(jsonPath("$[0].notes").value("Completed without issues"));
     }
 
     @Test
     void record_withValidBody_returns201() throws Exception {
-        when(performHistoryService.record(eq("eq-1"), eq("proc-1"), any())).thenReturn(samplePerform());
+        when(performHistoryService.record(eq(EQ_ID), eq(PROC_ID), any())).thenReturn(samplePerform());
 
         String body = """
                 {
@@ -71,11 +76,11 @@ class PerformHistoryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment/eq-1/procedures/proc-1/history")
+        mockMvc.perform(post("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value("perf-1"))
+                .andExpect(jsonPath("$.id").value(PERF_ID.toString()))
                 .andExpect(jsonPath("$.notes").value("Completed without issues"));
     }
 
@@ -87,7 +92,7 @@ class PerformHistoryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment/eq-1/procedures/proc-1/history")
+        mockMvc.perform(post("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())

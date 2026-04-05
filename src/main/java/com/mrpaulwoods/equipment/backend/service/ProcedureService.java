@@ -3,80 +3,54 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
 import com.mrpaulwoods.equipment.backend.model.Equipment;
 import com.mrpaulwoods.equipment.backend.model.Procedure;
-import com.mrpaulwoods.equipment.backend.util.IdGenerator;
+import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ProcedureService {
 
     private final EquipmentService equipmentService;
+    private final ProcedureRepository procedureRepository;
 
-    public List<Procedure> getAllForEquipment(String equipmentId) {
+    @Transactional(readOnly = true)
+    public List<Procedure> getAllForEquipment(UUID equipmentId) {
         Equipment equipment = equipmentService.getById(equipmentId);
-        return equipment.getProcedures() != null ? equipment.getProcedures() : new ArrayList<>();
+        return equipment.getProcedures();
     }
 
-    public Procedure getById(String equipmentId, String procedureId) {
+    @Transactional(readOnly = true)
+    public Procedure getById(UUID equipmentId, UUID procedureId) {
         return getAllForEquipment(equipmentId).stream()
                 .filter(p -> p.getId().equals(procedureId))
                 .findFirst()
-                .orElseThrow(() -> new ProcedureNotFoundException(procedureId));
+                .orElseThrow(() -> new ProcedureNotFoundException(procedureId.toString()));
     }
 
-    public Procedure create(String equipmentId, Procedure procedure) {
-        procedure.setId(IdGenerator.generate());
-        List<Equipment> all = equipmentService.getAll();
-        Equipment equipment = all.stream()
-                .filter(e -> e.getId().equals(equipmentId))
-                .findFirst()
-                .orElseThrow();
-        if (equipment.getProcedures() == null) {
-            equipment.setProcedures(new ArrayList<>());
-        }
-        equipment.getProcedures().add(procedure);
-        equipmentService.save(all);
-        return procedure;
+    public Procedure create(UUID equipmentId, Procedure procedure) {
+        Equipment equipment = equipmentService.getById(equipmentId);
+        procedure.setEquipment(equipment);
+        return procedureRepository.save(procedure);
     }
 
-    public Procedure update(String equipmentId, String procedureId, Procedure updated) {
-        List<Equipment> all = equipmentService.getAll();
-        Equipment equipment = all.stream()
-                .filter(e -> e.getId().equals(equipmentId))
-                .findFirst()
-                .orElseThrow();
-        List<Procedure> procedures = equipment.getProcedures();
-        if (procedures == null) throw new ProcedureNotFoundException(procedureId);
-        int index = -1;
-        for (int i = 0; i < procedures.size(); i++) {
-            if (procedures.get(i).getId().equals(procedureId)) {
-                index = i;
-                break;
-            }
-        }
-        if (index == -1) throw new ProcedureNotFoundException(procedureId);
-        updated.setId(procedureId);
-        // preserve existing history
-        updated.setHistory(procedures.get(index).getHistory());
-        procedures.set(index, updated);
-        equipmentService.save(all);
-        return updated;
+    public Procedure update(UUID equipmentId, UUID procedureId, Procedure updated) {
+        Procedure existing = getById(equipmentId, procedureId);
+        existing.setName(updated.getName());
+        existing.setDescription(updated.getDescription());
+        existing.setSteps(updated.getSteps());
+        existing.setRequiredTools(updated.getRequiredTools());
+        existing.setIntervalDays(updated.getIntervalDays());
+        return procedureRepository.save(existing);
     }
 
-    public void delete(String equipmentId, String procedureId) {
-        List<Equipment> all = equipmentService.getAll();
-        Equipment equipment = all.stream()
-                .filter(e -> e.getId().equals(equipmentId))
-                .findFirst()
-                .orElseThrow();
-        if (equipment.getProcedures() == null ||
-            !equipment.getProcedures().removeIf(p -> p.getId().equals(procedureId))) {
-            throw new ProcedureNotFoundException(procedureId);
-        }
-        equipmentService.save(all);
+    public void delete(UUID equipmentId, UUID procedureId) {
+        Procedure procedure = getById(equipmentId, procedureId);
+        procedureRepository.delete(procedure);
     }
 }

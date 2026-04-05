@@ -3,9 +3,11 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
 import com.mrpaulwoods.equipment.backend.model.Equipment;
 import com.mrpaulwoods.equipment.backend.model.Procedure;
+import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.util.DueDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -13,12 +15,14 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class DashboardService {
 
-    private final EquipmentService equipmentService;
+    private final EquipmentRepository equipmentRepository;
 
+    @Transactional(readOnly = true)
     public List<DashboardItem> getDashboardItems() {
-        return equipmentService.getAll().stream()
+        return equipmentRepository.findAllWithProceduresAndHistory().stream()
                 .filter(eq -> eq.getProcedures() != null)
                 .flatMap(eq -> eq.getProcedures().stream()
                         .map(proc -> toDashboardItem(eq, proc)))
@@ -31,9 +35,9 @@ public class DashboardService {
         Optional<DueDetails> due = DueDetails.calculate(proc);
         String equipmentName = eq.getManufacturer() + " " + eq.getModelNumber();
         return new DashboardItem(
-                eq.getId(),
+                eq.getId().toString(),
                 equipmentName,
-                proc.getId(),
+                proc.getId().toString(),
                 proc.getName(),
                 proc.getDescription(),
                 proc.getIntervalDays(),

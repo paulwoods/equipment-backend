@@ -1,49 +1,32 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
-import com.mrpaulwoods.equipment.backend.model.Equipment;
 import com.mrpaulwoods.equipment.backend.model.Perform;
 import com.mrpaulwoods.equipment.backend.model.Procedure;
-import com.mrpaulwoods.equipment.backend.util.IdGenerator;
+import com.mrpaulwoods.equipment.backend.repository.PerformRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PerformHistoryService {
 
-    private final EquipmentService equipmentService;
+    private final ProcedureService procedureService;
+    private final PerformRepository performRepository;
 
-    public List<Perform> getHistory(String equipmentId, String procedureId) {
-        List<Equipment> all = equipmentService.getAll();
-        Procedure procedure = findProcedure(all, equipmentId, procedureId);
-        return procedure.getHistory() != null ? procedure.getHistory() : new ArrayList<>();
+    @Transactional(readOnly = true)
+    public List<Perform> getHistory(UUID equipmentId, UUID procedureId) {
+        Procedure procedure = procedureService.getById(equipmentId, procedureId);
+        return procedure.getHistory();
     }
 
-    public Perform record(String equipmentId, String procedureId, Perform perform) {
-        perform.setId(IdGenerator.generate());
-        List<Equipment> all = equipmentService.getAll();
-        Procedure procedure = findProcedure(all, equipmentId, procedureId);
-        if (procedure.getHistory() == null) {
-            procedure.setHistory(new ArrayList<>());
-        }
-        procedure.getHistory().add(perform);
-        equipmentService.save(all);
-        return perform;
-    }
-
-    private Procedure findProcedure(List<Equipment> all, String equipmentId, String procedureId) {
-        Equipment equipment = all.stream()
-                .filter(e -> e.getId().equals(equipmentId))
-                .findFirst()
-                .orElseThrow();
-        if (equipment.getProcedures() == null) throw new ProcedureNotFoundException(procedureId);
-        return equipment.getProcedures().stream()
-                .filter(p -> p.getId().equals(procedureId))
-                .findFirst()
-                .orElseThrow(() -> new ProcedureNotFoundException(procedureId));
+    public Perform record(UUID equipmentId, UUID procedureId, Perform perform) {
+        Procedure procedure = procedureService.getById(equipmentId, procedureId);
+        perform.setProcedure(procedure);
+        return performRepository.save(perform);
     }
 }
