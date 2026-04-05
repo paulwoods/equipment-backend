@@ -2,6 +2,7 @@ package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.UserRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
+import com.mrpaulwoods.equipment.backend.model.Role;
 import com.mrpaulwoods.equipment.backend.model.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,12 +27,17 @@ public class UserService {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
         }
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
-        User saved = userRepository.save(user);
+        User saved = createInternal(request.getEmail(), request.getPassword(), request.getRole());
         return toResponse(saved);
+    }
+
+    @Transactional
+    public User createInternal(String email, String password, Role role) {
+        User user = new User();
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRole(role);
+        return userRepository.save(user);
     }
 
     public List<UserResponse> findAll() {
