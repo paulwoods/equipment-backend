@@ -1,44 +1,32 @@
-# syntax=docker/dockerfile:1.7
-
-############################
-# Stage 1: build
-############################
-FROM maven:3.9-eclipse-temurin-25 AS build
+# ─── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 
-COPY pom.xml .
-RUN mvn -B -e -ntp dependency:go-offline
+# Cache dependencies — only re-runs when pom.xml changes
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN ./mvnw dependency:go-offline -q
 
-COPY src ./src
-RUN mvn -B -e -ntp -DskipTests package
+# Build the jar
+COPY src/ src/
+RUN ./mvnw clean package -DskipTests -q
 
-RUN mkdir -p /workspace/extracted \
- && cp target/backend-0.0.1-SNAPSHOT.jar /workspace/extracted/app.jar \
- && cd /workspace/extracted \
- && java -Djarmode=tools -jar app.jar extract --layers --launcher \
- && rm app.jar
+# ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM eclipse-temurin:25-jre
 
-############################
-# Stage 2: runtime
-############################
-FROM eclipse-temurin:25-jdk-alpine AS runtime
+# Install curl for health check
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-RUN apk add --no-cache curl \
- && addgroup -S spring \
- && adduser -S -G spring -H -s /sbin/nologin spring
+# Non-root user
+RUN groupadd spring && useradd -g spring spring
+USER spring:spring
 
 WORKDIR /app
-
-COPY --from=build --chown=spring:spring /workspace/extracted/dependencies/          ./
-COPY --from=build --chown=spring:spring /workspace/extracted/spring-boot-loader/    ./
-COPY --from=build --chown=spring:spring /workspace/extracted/snapshot-dependencies/ ./
-COPY --from=build --chown=spring:spring /workspace/extracted/application/           ./
-
-USER spring:spring
+COPY --from=build /workspace/target/*.jar app.jar
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -fsS http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-jar", "app.jar"]
