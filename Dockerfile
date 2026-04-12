@@ -1,5 +1,5 @@
 # ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM eclipse-temurin:25-jdk AS build
+FROM eclipse-temurin:25.0.2_10-jdk-noble AS build
 WORKDIR /workspace
 
 # Cache dependencies — only re-runs when pom.xml changes
@@ -12,7 +12,7 @@ COPY src/ src/
 RUN ./mvnw clean package -DskipTests -q
 
 # ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:25.0.2_10-jre-noble
 
 # Install curl for health check
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
