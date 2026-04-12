@@ -1,11 +1,11 @@
 
 spring:
   application:
-    name: equipment-management
+    name: equipment
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgresql.woods.local:5432/postgres}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -14,9 +14,9 @@ spring:
     open-in-view: true
   flyway:
     enabled: true
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgresql.woods.local:5432/postgres}
-    user: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${POSTGRES_DB}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
   mail:
     host: smtp.gmail.com
     port: 587
@@ -29,11 +29,9 @@ spring:
 app:
   jwt-secret: ${APP_JWT_SECRET}
   jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
-  smtp-user: ${APP_SMTP_USER:}
-  smtp-pass: ${APP_SMTP_PASS:}
-  smtp-from: ${APP_SMTP_FROM:"Equipment Management <noreply@example.com>"}
-  app-url: ${APP_URL:http://localhost:8080}
-  email-recipient: ${APP_EMAIL_RECIPIENT:mr.paul.woods@gmail.com}
+  smtp-user: ${APP_SMTP_USER}
+  smtp-pass: ${APP_SMTP_PASS}
+  smtp-from: ${APP_SMTP_FROM}
 
 scheduling:
   enabled: true
