@@ -49,6 +49,13 @@ class JwtAuthFilterTest {
     }
 
     @Test
+    void shouldNotFilter_returnsFalseForMePath() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getServletPath()).thenReturn("/api/auth/me");
+        assertFalse(jwtAuthFilter.shouldNotFilter(request));
+    }
+
+    @Test
     void shouldNotFilter_returnsFalseForEquipmentPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getServletPath()).thenReturn("/api/equipment");
