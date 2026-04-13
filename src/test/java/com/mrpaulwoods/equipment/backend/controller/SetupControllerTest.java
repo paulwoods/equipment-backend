@@ -18,12 +18,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -106,6 +108,91 @@ class SetupControllerTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("admin@example.com"));
+    }
+
+    @Test
+    void setup_overHttps_setsSecureHardenedCookies() throws Exception {
+        when(userRepository.count()).thenReturn(0L);
+
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("admin@example.com");
+        user.setRole(Role.ADMIN);
+        when(userService.createInternal("admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
+
+        UserDetails ud = new org.springframework.security.core.userdetails.User(
+                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
+        when(jwtService.generateToken(ud)).thenReturn("access-token");
+
+        RefreshToken rt = new RefreshToken();
+        rt.setToken(UUID.randomUUID().toString());
+        rt.setUser(user);
+        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+
+        MvcResult result = mockMvc.perform(post("/api/setup")
+                        .secure(true)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "secret"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies).hasSize(2);
+
+        String accessHeader = setCookies.stream().filter(h -> h.startsWith("access_token=")).findFirst().orElseThrow();
+        assertThat(accessHeader).contains("Path=/");
+        assertThat(accessHeader).contains("Max-Age=3600");
+        assertThat(accessHeader).contains("HttpOnly");
+        assertThat(accessHeader).contains("SameSite=Lax");
+        assertThat(accessHeader).contains("Secure");
+
+        String refreshHeader = setCookies.stream().filter(h -> h.startsWith("refresh_token=")).findFirst().orElseThrow();
+        assertThat(refreshHeader).contains("Path=/api/auth");
+        assertThat(refreshHeader).contains("Max-Age=604800");
+        assertThat(refreshHeader).contains("HttpOnly");
+        assertThat(refreshHeader).contains("SameSite=Lax");
+        assertThat(refreshHeader).contains("Secure");
+    }
+
+    @Test
+    void setup_overHttp_doesNotSetSecureFlag() throws Exception {
+        when(userRepository.count()).thenReturn(0L);
+
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("admin@example.com");
+        user.setRole(Role.ADMIN);
+        when(userService.createInternal("admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
+
+        UserDetails ud = new org.springframework.security.core.userdetails.User(
+                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
+        when(jwtService.generateToken(ud)).thenReturn("access-token");
+
+        RefreshToken rt = new RefreshToken();
+        rt.setToken(UUID.randomUUID().toString());
+        rt.setUser(user);
+        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+
+        MvcResult result = mockMvc.perform(post("/api/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "secret"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        for (String h : setCookies) {
+            assertThat(h).doesNotContain("Secure");
+            assertThat(h).contains("HttpOnly");
+            assertThat(h).contains("SameSite=Lax");
+        }
     }
 
     @Test
