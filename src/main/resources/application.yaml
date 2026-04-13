@@ -31,9 +31,10 @@ spring:
 app:
   jwt-secret: ${APP_JWT_SECRET}
   jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
-  smtp-user: ${APP_SMTP_USER}
-  smtp-pass: ${APP_SMTP_PASS}
+  #  smtp-user`: ${APP_SMTP_USER}
+  #  smtp-pass: ${APP_SMTP_PASS}
   smtp-from: ${APP_SMTP_FROM}
+  app-url: ${APP_URL}
 
 scheduling:
   enabled: true
