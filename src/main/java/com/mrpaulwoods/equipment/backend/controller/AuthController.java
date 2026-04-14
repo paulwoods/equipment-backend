@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
@@ -37,6 +38,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final UserDetailsServiceImpl userDetailsService;
     private final UserRepository userRepository;
+    private final AppProperties appProperties;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(
@@ -109,7 +111,7 @@ public class AuthController {
     private void setAccessTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("access_token", token)
                 .httpOnly(true)
-                .secure(request.isSecure())
+                .secure(isCookieSecure(request))
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(3600)
@@ -120,7 +122,7 @@ public class AuthController {
     private void setRefreshTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("refresh_token", token)
                 .httpOnly(true)
-                .secure(request.isSecure())
+                .secure(isCookieSecure(request))
                 .sameSite("Lax")
                 .path("/api/auth")
                 .maxAge(7 * 24 * 3600)
@@ -131,12 +133,17 @@ public class AuthController {
     private void clearCookie(HttpServletRequest request, HttpServletResponse response, String name, String path) {
         ResponseCookie cookie = ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(request.isSecure())
+                .secure(isCookieSecure(request))
                 .sameSite("Lax")
                 .path(path)
                 .maxAge(0)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private boolean isCookieSecure(HttpServletRequest request) {
+        Boolean override = appProperties.getCookieSecure();
+        return override != null ? override : request.isSecure();
     }
 
     private String extractCookie(HttpServletRequest request, String name) {

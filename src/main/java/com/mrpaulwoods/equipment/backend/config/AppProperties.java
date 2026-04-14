@@ -13,4 +13,7 @@ public class AppProperties {
     private String smtpFrom;
     private String appUrl = "http://localhost:8080";
     private String emailRecipient;
+    // When set, forces the Secure flag on auth cookies regardless of request.isSecure().
+    // Leave null to derive from the request (useful for local HTTP development).
+    private Boolean cookieSecure;
 }

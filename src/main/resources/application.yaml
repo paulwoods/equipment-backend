@@ -35,6 +35,7 @@ app:
   #  smtp-pass: ${APP_SMTP_PASS}
   smtp-from: ${APP_SMTP_FROM}
   app-url: ${APP_URL}
+  cookie-secure: ${APP_COOKIE_SECURE}
 
 scheduling:
   enabled: true

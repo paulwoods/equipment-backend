@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
@@ -10,7 +11,6 @@ import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -55,13 +55,23 @@ class AuthControllerTest {
     @Mock
     private UserDetailsServiceImpl userDetailsService;
 
-    @InjectMocks
+    private AppProperties appProperties;
+
     private AuthController authController;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        appProperties = new AppProperties();
+        authController = new AuthController(
+                authenticationManager,
+                jwtService,
+                refreshTokenService,
+                userDetailsService,
+                userRepository,
+                appProperties
+        );
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 
@@ -147,6 +157,35 @@ class AuthControllerTest {
         assertThat(refreshHeader).contains("HttpOnly");
         assertThat(refreshHeader).contains("SameSite=Lax");
         assertThat(refreshHeader).doesNotContain("Secure");
+    }
+
+    @Test
+    void login_withCookieSecureOverrideTrue_forcesSecureOverHttp() throws Exception {
+        appProperties.setCookieSecure(true);
+
+        String email = "admin@example.com";
+        UserDetails ud = userDetails(email);
+        User user = appUser(email);
+        RefreshToken rt = refreshToken(user);
+        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "admin"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies).hasSize(2);
+        for (String h : setCookies) {
+            assertThat(h).contains("Secure");
+        }
     }
 
     @Test
