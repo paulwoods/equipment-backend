@@ -16,4 +16,6 @@ public class AppProperties {
     // When set, forces the Secure flag on auth cookies regardless of request.isSecure().
     // Leave null to derive from the request (useful for local HTTP development).
     private Boolean cookieSecure;
+    private int loginMaxAttempts = 5;
+    private long loginLockoutDurationMs = 15L * 60L * 1000L;
 }

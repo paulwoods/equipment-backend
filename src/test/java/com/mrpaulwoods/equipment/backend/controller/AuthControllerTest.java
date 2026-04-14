@@ -5,6 +5,7 @@ import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
+import com.mrpaulwoods.equipment.backend.service.LoginRateLimiterService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import com.mrpaulwoods.equipment.backend.util.Role;
@@ -30,9 +31,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -55,6 +55,9 @@ class AuthControllerTest {
     @Mock
     private UserDetailsServiceImpl userDetailsService;
 
+    @Mock
+    private LoginRateLimiterService loginRateLimiter;
+
     private AppProperties appProperties;
 
     private AuthController authController;
@@ -70,8 +73,10 @@ class AuthControllerTest {
                 refreshTokenService,
                 userDetailsService,
                 userRepository,
-                appProperties
+                appProperties,
+                loginRateLimiter
         );
+        lenient().when(loginRateLimiter.isBlocked(anyString(), anyString())).thenReturn(false);
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 
@@ -283,6 +288,59 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_whenRateLimited_returns429AndSkipsAuthentication() throws Exception {
+        when(loginRateLimiter.isBlocked(anyString(), eq("admin@example.com"))).thenReturn(true);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "whatever"}
+                                """))
+                .andExpect(status().isTooManyRequests());
+
+        verify(authenticationManager, never()).authenticate(any());
+        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
+    }
+
+    @Test
+    void login_withInvalidCredentials_recordsFailure() throws Exception {
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "wrong"}
+                                """))
+                .andExpect(status().isUnauthorized());
+
+        verify(loginRateLimiter).recordFailure(anyString(), eq("admin@example.com"));
+        verify(loginRateLimiter, never()).recordSuccess(anyString(), anyString());
+    }
+
+    @Test
+    void login_withValidCredentials_recordsSuccess() throws Exception {
+        String email = "admin@example.com";
+        UserDetails ud = userDetails(email);
+        User user = appUser(email);
+        RefreshToken rt = refreshToken(user);
+        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "admin"}
+                                """))
+                .andExpect(status().isOk());
+
+        verify(loginRateLimiter).recordSuccess(anyString(), eq(email));
+        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
     }
 
     @Test

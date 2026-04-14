@@ -36,6 +36,8 @@ app:
   smtp-from: ${APP_SMTP_FROM}
   app-url: ${APP_URL}
   cookie-secure: ${APP_COOKIE_SECURE}
+  login-max-attempts: ${APP_LOGIN_MAX_ATTEMPTS:5}
+  login-lockout-duration-ms: ${APP_LOGIN_LOCKOUT_DURATION_MS:900000}
 
 scheduling:
   enabled: true

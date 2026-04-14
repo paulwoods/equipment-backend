@@ -6,6 +6,7 @@ import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
+import com.mrpaulwoods.equipment.backend.service.LoginRateLimiterService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import jakarta.servlet.http.Cookie;
@@ -39,6 +40,7 @@ public class AuthController {
     private final UserDetailsServiceImpl userDetailsService;
     private final UserRepository userRepository;
     private final AppProperties appProperties;
+    private final LoginRateLimiterService loginRateLimiter;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(
@@ -46,23 +48,32 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
+        String clientIp = request.getRemoteAddr();
+        String email = loginRequest.getEmail();
+
+        if (loginRateLimiter.isBlocked(clientIp, email)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many login attempts");
+        }
+
         try {
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+                    new UsernamePasswordAuthenticationToken(email, loginRequest.getPassword())
             );
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             assert userDetails != null;
             String accessToken = jwtService.generateToken(userDetails);
 
-            User user = userRepository.findByEmail(loginRequest.getEmail())
+            User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
             setAccessTokenCookie(request, response, accessToken);
             setRefreshTokenCookie(request, response, refreshToken.getToken());
 
+            loginRateLimiter.recordSuccess(clientIp, email);
             return ResponseEntity.ok(Map.of("email", userDetails.getUsername()));
         } catch (AuthenticationException e) {
+            loginRateLimiter.recordFailure(clientIp, email);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
