@@ -6,6 +6,7 @@ import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
+import com.mrpaulwoods.equipment.backend.service.ExportService;
 import com.mrpaulwoods.equipment.backend.service.ImportService;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,9 @@ class EquipmentControllerTest {
     private EquipmentService equipmentService;
 
     @Mock
+    private ExportService exportService;
+
+    @Mock
     private ImportService importService;
 
     @InjectMocks
@@ -52,7 +56,7 @@ class EquipmentControllerTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         // Inject real ObjectMapper into the controller (it's a final field via @RequiredArgsConstructor)
-        equipmentController = new EquipmentController(equipmentService, importService, objectMapper);
+        equipmentController = new EquipmentController(equipmentService, exportService, importService, objectMapper);
         mockMvc = MockMvcBuilders.standaloneSetup(equipmentController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -217,6 +221,31 @@ class EquipmentControllerTest {
         mockMvc.perform(multipart("/api/equipment/import").file(file))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void exportEquipment_returnsJsonFile() throws Exception {
+        when(exportService.exportAll()).thenReturn(List.of(sampleEquipment()));
+
+        mockMvc.perform(get("/api/equipment/export"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(EQ_ID.toString()))
+                .andExpect(jsonPath("$[0].manufacturer").value("Acme"))
+                .andExpect(result -> {
+                    String contentDisposition = result.getResponse().getHeader("Content-Disposition");
+                    assert contentDisposition != null && contentDisposition.contains("equipment-export-");
+                    assert contentDisposition.endsWith(".json\"");
+                });
+    }
+
+    @Test
+    void exportEquipment_whenEmpty_returnsEmptyArray() throws Exception {
+        when(exportService.exportAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/equipment/export"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

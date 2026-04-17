@@ -11,4 +11,7 @@ public interface EquipmentRepository extends JpaRepository<Equipment, UUID> {
 
     @Query("SELECT DISTINCT e FROM Equipment e LEFT JOIN FETCH e.procedures p LEFT JOIN FETCH p.history")
     List<Equipment> findAllWithProceduresAndHistory();
+
+    @Query("SELECT DISTINCT e FROM Equipment e LEFT JOIN FETCH e.procedures")
+    List<Equipment> findAllWithProcedures();
 }

@@ -6,11 +6,14 @@ import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
+import com.mrpaulwoods.equipment.backend.service.ExportService;
 import com.mrpaulwoods.equipment.backend.service.ImportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +21,8 @@ import tools.jackson.core.exc.StreamReadException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +32,7 @@ import java.util.UUID;
 public class EquipmentController {
 
     private final EquipmentService equipmentService;
+    private final ExportService exportService;
     private final ImportService importService;
     private final ObjectMapper objectMapper;
 
@@ -34,6 +40,18 @@ public class EquipmentController {
     @GetMapping
     public List<Equipment> getAll() {
         return equipmentService.getAll();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportEquipment() throws IOException {
+        List<Equipment> equipment = exportService.exportAll();
+        byte[] json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(equipment);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"equipment-export-" + timestamp + ".json\"");
+        return ResponseEntity.ok().headers(headers).body(json);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
