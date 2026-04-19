@@ -4,6 +4,7 @@ import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
+import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import com.mrpaulwoods.equipment.backend.util.DueDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,10 +20,16 @@ import java.util.Optional;
 public class DashboardService {
 
     private final EquipmentRepository equipmentRepository;
+    private final ProcedureRepository procedureRepository;
 
     @Transactional(readOnly = true)
     public List<DashboardItem> getDashboardItems() {
-        return equipmentRepository.findAllWithProceduresAndHistory().stream()
+        // Two separate JOIN FETCH queries avoid the MultipleBagFetchException.
+        // findAllWithHistory warms the session cache so proc.getHistory() hits L1, not the DB.
+        procedureRepository.findAllWithHistory();
+        List<Equipment> equipment = equipmentRepository.findAllWithProcedures();
+
+        return equipment.stream()
                 .filter(eq -> eq.getProcedures() != null)
                 .flatMap(eq -> eq.getProcedures().stream()
                         .map(proc -> toDashboardItem(eq, proc)))

@@ -27,21 +27,25 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void equipmentNotFound_returns404WithMessage() throws Exception {
+    void equipmentNotFound_returns404WithProblemDetail() throws Exception {
         mockMvc.perform(get("/equipment/eq-99"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Equipment not found: eq-99"));
+                .andExpect(jsonPath("$.title").value("Resource Not Found"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("Equipment not found: eq-99"));
     }
 
     @Test
-    void procedureNotFound_returns404WithMessage() throws Exception {
+    void procedureNotFound_returns404WithProblemDetail() throws Exception {
         mockMvc.perform(get("/procedure/proc-5"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Procedure not found: proc-5"));
+                .andExpect(jsonPath("$.title").value("Resource Not Found"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("Procedure not found: proc-5"));
     }
 
     @Test
-    void validation_blankAndNull_returns400WithFieldErrors() throws Exception {
+    void validation_blankAndNull_returns400WithProblemDetail() throws Exception {
         String body = """
                 { "name": "", "count": null }
                 """;
@@ -50,16 +54,19 @@ class GlobalExceptionHandlerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Validation Error"))
+                .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.errors.name").exists())
                 .andExpect(jsonPath("$.errors.count").exists());
     }
 
     @Test
-    void validation_missingFields_returns400WithFieldErrors() throws Exception {
+    void validation_missingFields_returns400WithProblemDetail() throws Exception {
         mockMvc.perform(post("/validated")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Validation Error"))
                 .andExpect(jsonPath("$.errors").exists());
     }
 

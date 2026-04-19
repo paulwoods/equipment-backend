@@ -3,11 +3,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
-import com.mrpaulwoods.equipment.backend.repository.UserRepository;
-import com.mrpaulwoods.equipment.backend.service.JwtService;
-import com.mrpaulwoods.equipment.backend.service.LoginRateLimiterService;
-import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
-import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
+import com.mrpaulwoods.equipment.backend.service.*;
 import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +46,7 @@ class AuthControllerTest {
     private RefreshTokenService refreshTokenService;
 
     @Mock
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Mock
     private UserDetailsServiceImpl userDetailsService;
@@ -72,7 +68,7 @@ class AuthControllerTest {
                 jwtService,
                 refreshTokenService,
                 userDetailsService,
-                userRepository,
+                userService,
                 appProperties,
                 loginRateLimiter
         );
@@ -111,14 +107,14 @@ class AuthControllerTest {
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
         String body = """
                 {"email": "admin@example.com", "password": "admin"}
                 """;
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -134,10 +130,10 @@ class AuthControllerTest {
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "admin"}
@@ -157,7 +153,7 @@ class AuthControllerTest {
         assertThat(accessHeader).doesNotContain("Secure");
 
         String refreshHeader = setCookies.stream().filter(h -> h.startsWith("refresh_token=")).findFirst().orElseThrow();
-        assertThat(refreshHeader).contains("Path=/api/auth");
+        assertThat(refreshHeader).contains("Path=/api/v1/auth");
         assertThat(refreshHeader).contains("Max-Age=604800");
         assertThat(refreshHeader).contains("HttpOnly");
         assertThat(refreshHeader).contains("SameSite=Lax");
@@ -175,10 +171,10 @@ class AuthControllerTest {
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "admin"}
@@ -202,10 +198,10 @@ class AuthControllerTest {
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .secure(true)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -227,9 +223,9 @@ class AuthControllerTest {
     void logout_clearsBothCookiesWithMaxAgeZero() throws Exception {
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("admin@example.com");
-        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.empty());
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.empty());
 
-        MvcResult result = mockMvc.perform(post("/api/auth/logout").principal(auth).secure(true))
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/logout").principal(auth).secure(true))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -255,7 +251,7 @@ class AuthControllerTest {
         when(userDetailsService.loadUserByUsername(email)).thenReturn(ud);
         when(jwtService.generateToken(ud)).thenReturn("new-access");
 
-        MvcResult result = mockMvc.perform(post("/api/auth/refresh")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
                         .secure(true)
                         .cookie(new jakarta.servlet.http.Cookie("refresh_token", "old-refresh")))
                 .andExpect(status().isOk())
@@ -272,7 +268,7 @@ class AuthControllerTest {
 
     @Test
     void refresh_withoutCookie_returns401() throws Exception {
-        mockMvc.perform(post("/api/auth/refresh"))
+        mockMvc.perform(post("/api/v1/auth/refresh"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -284,7 +280,7 @@ class AuthControllerTest {
                 {"email": "admin@example.com", "password": "wrong"}
                 """;
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
@@ -294,7 +290,7 @@ class AuthControllerTest {
     void login_whenRateLimited_returns429AndSkipsAuthentication() throws Exception {
         when(loginRateLimiter.isBlocked(anyString(), eq("admin@example.com"))).thenReturn(true);
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "whatever"}
@@ -309,7 +305,7 @@ class AuthControllerTest {
     void login_withInvalidCredentials_recordsFailure() throws Exception {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "wrong"}
@@ -329,10 +325,10 @@ class AuthControllerTest {
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "admin"}
@@ -351,7 +347,7 @@ class AuthControllerTest {
         when(auth.getAuthorities()).thenAnswer(_ ->
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
-        mockMvc.perform(get("/api/auth/me").principal(auth))
+        mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("admin@example.com"))
                 .andExpect(jsonPath("$.role").value("ROLE_ADMIN"));
@@ -359,7 +355,7 @@ class AuthControllerTest {
 
     @Test
     void me_whenNullAuthentication_returns200() throws Exception {
-        mockMvc.perform(get("/api/auth/me"))
+        mockMvc.perform(get("/api/v1/auth/me"))
                 .andExpect(status().isOk());
     }
 
@@ -368,7 +364,7 @@ class AuthControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(false);
 
-        mockMvc.perform(get("/api/auth/me").principal(auth))
+        mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk());
     }
 }

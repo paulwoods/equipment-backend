@@ -47,10 +47,7 @@ class UserServiceTest {
     @Test
     void create_withNewEmail_savesAndReturnsResponse() {
         UUID id = UUID.randomUUID();
-        UserRequest request = new UserRequest();
-        request.setEmail("new@example.com");
-        request.setPassword("secret");
-        request.setRole(Role.USER);
+        var request = new UserRequest("new@example.com", "secret", Role.USER);
 
         when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("secret")).thenReturn("hashed");
@@ -62,17 +59,14 @@ class UserServiceTest {
 
         UserResponse response = userService.create(request);
 
-        assertThat(response.getEmail()).isEqualTo("new@example.com");
-        assertThat(response.getRole()).isEqualTo(Role.USER);
-        assertThat(response.getId()).isEqualTo(id);
+        assertThat(response.email()).isEqualTo("new@example.com");
+        assertThat(response.role()).isEqualTo(Role.USER);
+        assertThat(response.id()).isEqualTo(id);
     }
 
     @Test
     void create_withDuplicateEmail_throwsConflict() {
-        UserRequest request = new UserRequest();
-        request.setEmail("existing@example.com");
-        request.setPassword("secret");
-        request.setRole(Role.ADMIN);
+        var request = new UserRequest("existing@example.com", "secret", Role.ADMIN);
 
         when(userRepository.findByEmail("existing@example.com"))
                 .thenReturn(Optional.of(sampleUser(UUID.randomUUID(), "existing@example.com", Role.ADMIN)));
@@ -86,19 +80,21 @@ class UserServiceTest {
     }
 
     @Test
-    void findAll_returnsAllUsers() {
+    void findAll_returnsPagedUsers() {
         UUID id1 = UUID.randomUUID();
         UUID id2 = UUID.randomUUID();
-        when(userRepository.findAll()).thenReturn(List.of(
+        var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
+        var page = new org.springframework.data.domain.PageImpl<>(List.of(
                 sampleUser(id1, "a@example.com", Role.ADMIN),
                 sampleUser(id2, "b@example.com", Role.USER)
         ));
+        when(userRepository.findAll(pageable)).thenReturn(page);
 
-        List<UserResponse> result = userService.findAll();
+        var result = userService.findAll(pageable);
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getEmail()).isEqualTo("a@example.com");
-        assertThat(result.get(1).getRole()).isEqualTo(Role.USER);
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getContent().get(0).email()).isEqualTo("a@example.com");
+        assertThat(result.getContent().get(1).role()).isEqualTo(Role.USER);
     }
 
     @Test
@@ -109,6 +105,27 @@ class UserServiceTest {
         userService.delete(id);
 
         verify(userRepository).deleteById(id);
+    }
+
+    @Test
+    void isSetupRequired_whenNoUsers_returnsTrue() {
+        when(userRepository.count()).thenReturn(0L);
+        assertThat(userService.isSetupRequired()).isTrue();
+    }
+
+    @Test
+    void isSetupRequired_whenUsersExist_returnsFalse() {
+        when(userRepository.count()).thenReturn(1L);
+        assertThat(userService.isSetupRequired()).isFalse();
+    }
+
+    @Test
+    void findByEmail_delegatesToRepository() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "test@example.com", Role.USER);
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(userService.findByEmail("test@example.com")).contains(user);
     }
 
     @Test

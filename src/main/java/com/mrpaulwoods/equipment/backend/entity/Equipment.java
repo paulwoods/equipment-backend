@@ -3,8 +3,9 @@ package com.mrpaulwoods.equipment.backend.entity;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,7 +14,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "equipment")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Equipment {

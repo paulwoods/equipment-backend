@@ -36,7 +36,7 @@ class EmailControllerTest {
     void sendDashboard_whenSucceeds_returnsSuccess() throws Exception {
         doNothing().when(emailService).sendDashboardEmail();
 
-        mockMvc.perform(post("/api/email/dashboard"))
+        mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
@@ -45,7 +45,7 @@ class EmailControllerTest {
     void sendDashboard_whenServiceThrows_returns500WithError() throws Exception {
         doThrow(new RuntimeException("SMTP connection failed")).when(emailService).sendDashboardEmail();
 
-        mockMvc.perform(post("/api/email/dashboard"))
+        mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("SMTP connection failed"));
     }
@@ -54,7 +54,7 @@ class EmailControllerTest {
     void sendDashboard_whenServiceThrowsWithNullMessage_returns500WithFallback() throws Exception {
         doThrow(new RuntimeException((String) null)).when(emailService).sendDashboardEmail();
 
-        mockMvc.perform(post("/api/email/dashboard"))
+        mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Failed to send email"));
     }

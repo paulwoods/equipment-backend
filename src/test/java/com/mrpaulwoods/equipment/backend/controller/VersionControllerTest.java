@@ -35,7 +35,7 @@ class VersionControllerTest {
     void getVersion_returnsVersion() throws Exception {
         when(buildProperties.getVersion()).thenReturn("2.0.15");
 
-        mockMvc.perform(get("/api/version"))
+        mockMvc.perform(get("/api/v1/version"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value("2.0.15"));
     }

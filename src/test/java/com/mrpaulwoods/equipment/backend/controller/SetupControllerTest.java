@@ -2,7 +2,6 @@ package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
-import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
@@ -36,9 +35,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SetupControllerTest {
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private UserService userService;
 
     @Mock
@@ -62,25 +58,25 @@ class SetupControllerTest {
 
     @Test
     void status_whenNoUsers_returnsSetupRequired() throws Exception {
-        when(userRepository.count()).thenReturn(0L);
+        when(userService.isSetupRequired()).thenReturn(true);
 
-        mockMvc.perform(get("/api/setup/status"))
+        mockMvc.perform(get("/api/v1/setup/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.setupRequired").value(true));
     }
 
     @Test
     void status_whenUsersExist_returnsSetupNotRequired() throws Exception {
-        when(userRepository.count()).thenReturn(1L);
+        when(userService.isSetupRequired()).thenReturn(false);
 
-        mockMvc.perform(get("/api/setup/status"))
+        mockMvc.perform(get("/api/v1/setup/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.setupRequired").value(false));
     }
 
     @Test
     void setup_whenNoUsers_createsAdminAndReturnsEmail() throws Exception {
-        when(userRepository.count()).thenReturn(0L);
+        when(userService.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -103,7 +99,7 @@ class SetupControllerTest {
                 {"email": "admin@example.com", "password": "secret"}
                 """;
 
-        mockMvc.perform(post("/api/setup")
+        mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -112,7 +108,7 @@ class SetupControllerTest {
 
     @Test
     void setup_overHttps_setsSecureHardenedCookies() throws Exception {
-        when(userRepository.count()).thenReturn(0L);
+        when(userService.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -131,7 +127,7 @@ class SetupControllerTest {
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        MvcResult result = mockMvc.perform(post("/api/setup")
+        MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .secure(true)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -151,7 +147,7 @@ class SetupControllerTest {
         assertThat(accessHeader).contains("Secure");
 
         String refreshHeader = setCookies.stream().filter(h -> h.startsWith("refresh_token=")).findFirst().orElseThrow();
-        assertThat(refreshHeader).contains("Path=/api/auth");
+        assertThat(refreshHeader).contains("Path=/api/v1/auth");
         assertThat(refreshHeader).contains("Max-Age=604800");
         assertThat(refreshHeader).contains("HttpOnly");
         assertThat(refreshHeader).contains("SameSite=Lax");
@@ -160,7 +156,7 @@ class SetupControllerTest {
 
     @Test
     void setup_overHttp_doesNotSetSecureFlag() throws Exception {
-        when(userRepository.count()).thenReturn(0L);
+        when(userService.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -179,7 +175,7 @@ class SetupControllerTest {
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
-        MvcResult result = mockMvc.perform(post("/api/setup")
+        MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email": "admin@example.com", "password": "secret"}
@@ -197,13 +193,13 @@ class SetupControllerTest {
 
     @Test
     void setup_whenUsersExist_returns409() throws Exception {
-        when(userRepository.count()).thenReturn(1L);
+        when(userService.isSetupRequired()).thenReturn(false);
 
         String body = """
                 {"email": "another@example.com", "password": "secret"}
                 """;
 
-        mockMvc.perform(post("/api/setup")
+        mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict());
@@ -215,7 +211,7 @@ class SetupControllerTest {
                 {"email": "not-an-email", "password": ""}
                 """;
 
-        mockMvc.perform(post("/api/setup")
+        mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());

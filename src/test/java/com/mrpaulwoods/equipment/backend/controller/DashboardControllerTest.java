@@ -42,7 +42,7 @@ class DashboardControllerTest {
         );
         when(dashboardService.getDashboardItems()).thenReturn(List.of(item));
 
-        mockMvc.perform(get("/api/dashboard"))
+        mockMvc.perform(get("/api/v1/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].equipmentId").value("eq-1"))
                 .andExpect(jsonPath("$[0].procedureName").value("Oil Change"))
@@ -54,7 +54,7 @@ class DashboardControllerTest {
     void getDashboard_whenEmpty_returnsEmptyList() throws Exception {
         when(dashboardService.getDashboardItems()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/dashboard"))
+        mockMvc.perform(get("/api/v1/dashboard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }

@@ -1,6 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.ImportResult;
+import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -55,14 +56,29 @@ class EquipmentControllerTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        // Inject real ObjectMapper into the controller (it's a final field via @RequiredArgsConstructor)
         equipmentController = new EquipmentController(equipmentService, exportService, importService, objectMapper);
         mockMvc = MockMvcBuilders.standaloneSetup(equipmentController)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
 
-    private Equipment sampleEquipment() {
+    private EquipmentListResponse sampleListResponse() {
+        return new EquipmentListResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
+    }
+
+    private EquipmentDetailResponse sampleDetailResponse() {
+        return new EquipmentDetailResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
+    }
+
+    private EquipmentCreateResponse sampleCreateResponse() {
+        return new EquipmentCreateResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
+    }
+
+    private Equipment sampleEquipmentEntity() {
         Equipment e = new Equipment();
         e.setId(EQ_ID);
         e.setManufacturer("Acme");
@@ -74,20 +90,22 @@ class EquipmentControllerTest {
     }
 
     @Test
-    void getAll_returnsEquipmentList() throws Exception {
-        when(equipmentService.getAll()).thenReturn(List.of(sampleEquipment()));
+    void getAll_returnsPagedEquipmentList() throws Exception {
+        var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
+        var page = new org.springframework.data.domain.PageImpl<>(List.of(sampleListResponse()), pageable, 1);
+        when(equipmentService.getAll(any())).thenReturn(page);
 
-        mockMvc.perform(get("/api/equipment"))
+        mockMvc.perform(get("/api/v1/equipment"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(EQ_ID.toString()))
-                .andExpect(jsonPath("$[0].manufacturer").value("Acme"));
+                .andExpect(jsonPath("$.content[0].id").value(EQ_ID.toString()))
+                .andExpect(jsonPath("$.content[0].manufacturer").value("Acme"));
     }
 
     @Test
     void getById_whenFound_returnsEquipment() throws Exception {
-        when(equipmentService.getById(EQ_ID)).thenReturn(sampleEquipment());
+        when(equipmentService.getById(EQ_ID)).thenReturn(sampleDetailResponse());
 
-        mockMvc.perform(get("/api/equipment/{id}", EQ_ID))
+        mockMvc.perform(get("/api/v1/equipment/{id}", EQ_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(EQ_ID.toString()))
                 .andExpect(jsonPath("$.modelNumber").value("X100"));
@@ -98,14 +116,16 @@ class EquipmentControllerTest {
         UUID missing = UUID.randomUUID();
         when(equipmentService.getById(missing)).thenThrow(new EquipmentNotFoundException(missing.toString()));
 
-        mockMvc.perform(get("/api/equipment/{id}", missing))
+        mockMvc.perform(get("/api/v1/equipment/{id}", missing))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Equipment not found: " + missing));
+                .andExpect(jsonPath("$.title").value("Resource Not Found"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("Equipment not found: " + missing));
     }
 
     @Test
     void create_withValidBody_returns201() throws Exception {
-        when(equipmentService.create(any())).thenReturn(sampleEquipment());
+        when(equipmentService.create(any())).thenReturn(sampleCreateResponse());
 
         String body = """
                 {
@@ -116,7 +136,7 @@ class EquipmentControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment")
+        mockMvc.perform(post("/api/v1/equipment")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -131,7 +151,7 @@ class EquipmentControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment")
+        mockMvc.perform(post("/api/v1/equipment")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -140,8 +160,8 @@ class EquipmentControllerTest {
 
     @Test
     void update_withValidBody_returnsUpdatedEquipment() throws Exception {
-        Equipment updated = sampleEquipment();
-        updated.setManufacturer("NewCorp");
+        var updated = new EquipmentUpdateResponse(EQ_ID, "NewCorp", "X100", "SN-001", null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
         when(equipmentService.update(eq(EQ_ID), any())).thenReturn(updated);
 
         String body = """
@@ -153,7 +173,7 @@ class EquipmentControllerTest {
                 }
                 """;
 
-        mockMvc.perform(put("/api/equipment/{id}", EQ_ID)
+        mockMvc.perform(put("/api/v1/equipment/{id}", EQ_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -164,7 +184,7 @@ class EquipmentControllerTest {
     void delete_whenFound_returns204() throws Exception {
         doNothing().when(equipmentService).delete(EQ_ID);
 
-        mockMvc.perform(delete("/api/equipment/{id}", EQ_ID))
+        mockMvc.perform(delete("/api/v1/equipment/{id}", EQ_ID))
                 .andExpect(status().isNoContent());
 
         verify(equipmentService).delete(EQ_ID);
@@ -175,7 +195,7 @@ class EquipmentControllerTest {
         UUID missing = UUID.randomUUID();
         doThrow(new EquipmentNotFoundException(missing.toString())).when(equipmentService).delete(missing);
 
-        mockMvc.perform(delete("/api/equipment/{id}", missing))
+        mockMvc.perform(delete("/api/v1/equipment/{id}", missing))
                 .andExpect(status().isNotFound());
     }
 
@@ -198,7 +218,7 @@ class EquipmentControllerTest {
 
         MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", json.getBytes());
 
-        mockMvc.perform(multipart("/api/equipment/import").file(file))
+        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.equipmentImported").value(2))
                 .andExpect(jsonPath("$.proceduresImported").value(3))
@@ -209,25 +229,27 @@ class EquipmentControllerTest {
     void importEquipment_withEmptyFile_returns400() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", new byte[0]);
 
-        mockMvc.perform(multipart("/api/equipment/import").file(file))
+        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Import file is empty"));
+                .andExpect(jsonPath("$.title").value("Import Error"))
+                .andExpect(jsonPath("$.detail").value("Import file is empty"));
     }
 
     @Test
     void importEquipment_withInvalidJson_returns400() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", "not json".getBytes());
 
-        mockMvc.perform(multipart("/api/equipment/import").file(file))
+        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").exists());
+                .andExpect(jsonPath("$.title").value("Import Error"))
+                .andExpect(jsonPath("$.detail").exists());
     }
 
     @Test
     void exportEquipment_returnsJsonFile() throws Exception {
-        when(exportService.exportAll()).thenReturn(List.of(sampleEquipment()));
+        when(exportService.exportAll()).thenReturn(List.of(sampleEquipmentEntity()));
 
-        mockMvc.perform(get("/api/equipment/export"))
+        mockMvc.perform(get("/api/v1/equipment/export"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(EQ_ID.toString()))
                 .andExpect(jsonPath("$[0].manufacturer").value("Acme"))
@@ -242,7 +264,7 @@ class EquipmentControllerTest {
     void exportEquipment_whenEmpty_returnsEmptyArray() throws Exception {
         when(exportService.exportAll()).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/equipment/export"))
+        mockMvc.perform(get("/api/v1/equipment/export"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
@@ -265,8 +287,9 @@ class EquipmentControllerTest {
 
         MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", json.getBytes());
 
-        mockMvc.perform(multipart("/api/equipment/import").file(file))
+        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Equipment[0]: manufacturer is required"));
+                .andExpect(jsonPath("$.title").value("Import Error"))
+                .andExpect(jsonPath("$.detail").value("Equipment[0]: manufacturer is required"));
     }
 }

@@ -1,15 +1,17 @@
 package com.mrpaulwoods.equipment.backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "refresh_token")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 public class RefreshToken {
 

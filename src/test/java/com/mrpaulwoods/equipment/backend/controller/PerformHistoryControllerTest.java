@@ -1,6 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.entity.Perform;
+import com.mrpaulwoods.equipment.backend.dto.PerformCreateResponse;
+import com.mrpaulwoods.equipment.backend.dto.PerformListResponse;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,19 +48,12 @@ class PerformHistoryControllerTest {
                 .build();
     }
 
-    private Perform samplePerform() {
-        Perform p = new Perform();
-        p.setId(PERF_ID);
-        p.setDate(LocalDate.of(2024, 6, 1));
-        p.setNotes("Completed without issues");
-        return p;
-    }
-
     @Test
     void getHistory_returnsPerformList() throws Exception {
-        when(performHistoryService.getHistory(EQ_ID, PROC_ID)).thenReturn(List.of(samplePerform()));
+        var response = new PerformListResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
+        when(performHistoryService.getHistory(EQ_ID, PROC_ID)).thenReturn(List.of(response));
 
-        mockMvc.perform(get("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID))
+        mockMvc.perform(get("/api/v1/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(PERF_ID.toString()))
                 .andExpect(jsonPath("$[0].notes").value("Completed without issues"));
@@ -67,7 +61,8 @@ class PerformHistoryControllerTest {
 
     @Test
     void record_withValidBody_returns201() throws Exception {
-        when(performHistoryService.record(eq(EQ_ID), eq(PROC_ID), any())).thenReturn(samplePerform());
+        var response = new PerformCreateResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
+        when(performHistoryService.record(eq(EQ_ID), eq(PROC_ID), any())).thenReturn(response);
 
         String body = """
                 {
@@ -76,7 +71,7 @@ class PerformHistoryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
+        mockMvc.perform(post("/api/v1/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -92,7 +87,7 @@ class PerformHistoryControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/api/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
+        mockMvc.perform(post("/api/v1/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())

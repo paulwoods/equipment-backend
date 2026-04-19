@@ -1,0 +1,21 @@
+spring:
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+app:
+  jwt-secret: AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-abcdefghijklmnopqrstuvwxyz
+  jwt-expiration-ms: 3600000
+  smtp-from: no-reply@test.local
+  app-url: http://localhost
+  cookie-secure: false
+  login-max-attempts: 5
+  login-lockout-duration-ms: 900000
+
+scheduling:
+  enabled: false

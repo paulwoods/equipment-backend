@@ -30,35 +30,35 @@ class JwtAuthFilterTest {
     @Test
     void shouldNotFilter_returnsTrueForLoginPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getServletPath()).thenReturn("/api/auth/login");
+        when(request.getServletPath()).thenReturn("/api/v1/auth/login");
         assertTrue(jwtAuthFilter.shouldNotFilter(request));
     }
 
     @Test
     void shouldNotFilter_returnsTrueForRefreshPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getServletPath()).thenReturn("/api/auth/refresh");
+        when(request.getServletPath()).thenReturn("/api/v1/auth/refresh");
         assertTrue(jwtAuthFilter.shouldNotFilter(request));
     }
 
     @Test
     void shouldNotFilter_returnsTrueForLogoutPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getServletPath()).thenReturn("/api/auth/logout");
+        when(request.getServletPath()).thenReturn("/api/v1/auth/logout");
         assertTrue(jwtAuthFilter.shouldNotFilter(request));
     }
 
     @Test
     void shouldNotFilter_returnsFalseForMePath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getServletPath()).thenReturn("/api/auth/me");
+        when(request.getServletPath()).thenReturn("/api/v1/auth/me");
         assertFalse(jwtAuthFilter.shouldNotFilter(request));
     }
 
     @Test
     void shouldNotFilter_returnsFalseForEquipmentPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getServletPath()).thenReturn("/api/equipment");
+        when(request.getServletPath()).thenReturn("/api/v1/equipment");
         assertFalse(jwtAuthFilter.shouldNotFilter(request));
     }
 

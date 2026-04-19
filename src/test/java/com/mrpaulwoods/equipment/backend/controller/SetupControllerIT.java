@@ -24,9 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SetupControllerIT extends BaseIT {
 
-    private static final String SETUP_STATUS = "/api/setup/status";
-    private static final String SETUP = "/api/setup";
-    private static final String PROTECTED_ENDPOINT = "/api/equipment";
+    private static final String SETUP_STATUS = "/api/v1/setup/status";
+    private static final String SETUP = "/api/v1/setup";
+    private static final String PROTECTED_ENDPOINT = "/api/v1/equipment";
 
     @Autowired
     private UserService userService;

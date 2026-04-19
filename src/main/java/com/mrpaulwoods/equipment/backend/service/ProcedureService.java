@@ -1,6 +1,6 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.entity.Equipment;
+import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
@@ -13,44 +13,83 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class ProcedureService {
 
     private final EquipmentService equipmentService;
     private final ProcedureRepository procedureRepository;
 
-    @Transactional(readOnly = true)
-    public List<Procedure> getAllForEquipment(UUID equipmentId) {
-        Equipment equipment = equipmentService.getById(equipmentId);
-        return equipment.getProcedures();
+    public List<ProcedureListResponse> getAllForEquipment(UUID equipmentId) {
+        var equipment = equipmentService.getEntityById(equipmentId);
+        return equipment.getProcedures().stream()
+                .map(this::toListResponse)
+                .toList();
     }
 
-    @Transactional(readOnly = true)
-    public Procedure getById(UUID equipmentId, UUID procedureId) {
-        return getAllForEquipment(equipmentId).stream()
+    public ProcedureDetailResponse getById(UUID equipmentId, UUID procedureId) {
+        return toDetailResponse(getEntityById(equipmentId, procedureId));
+    }
+
+    Procedure getEntityById(UUID equipmentId, UUID procedureId) {
+        var equipment = equipmentService.getEntityById(equipmentId);
+        return equipment.getProcedures().stream()
                 .filter(p -> p.getId().equals(procedureId))
                 .findFirst()
                 .orElseThrow(() -> new ProcedureNotFoundException(procedureId.toString()));
     }
 
-    public Procedure create(UUID equipmentId, Procedure procedure) {
-        Equipment equipment = equipmentService.getById(equipmentId);
+    @Transactional
+    public ProcedureCreateResponse create(UUID equipmentId, ProcedureRequest request) {
+        var equipment = equipmentService.getEntityById(equipmentId);
+        var procedure = toEntity(request);
         procedure.setEquipment(equipment);
-        return procedureRepository.save(procedure);
+        return toCreateResponse(procedureRepository.save(procedure));
     }
 
-    public Procedure update(UUID equipmentId, UUID procedureId, Procedure updated) {
-        Procedure existing = getById(equipmentId, procedureId);
-        existing.setName(updated.getName());
-        existing.setDescription(updated.getDescription());
-        existing.setSteps(updated.getSteps());
-        existing.setRequiredTools(updated.getRequiredTools());
-        existing.setIntervalDays(updated.getIntervalDays());
-        return procedureRepository.save(existing);
+    @Transactional
+    public ProcedureUpdateResponse update(UUID equipmentId, UUID procedureId, ProcedureRequest request) {
+        var existing = getEntityById(equipmentId, procedureId);
+        existing.setName(request.name());
+        existing.setDescription(request.description());
+        existing.setSteps(request.steps());
+        existing.setRequiredTools(request.requiredTools());
+        existing.setIntervalDays(request.intervalDays());
+        return toUpdateResponse(procedureRepository.save(existing));
     }
 
+    @Transactional
     public void delete(UUID equipmentId, UUID procedureId) {
-        Procedure procedure = getById(equipmentId, procedureId);
+        var procedure = getEntityById(equipmentId, procedureId);
         procedureRepository.delete(procedure);
+    }
+
+    private Procedure toEntity(ProcedureRequest request) {
+        var p = new Procedure();
+        p.setName(request.name());
+        p.setDescription(request.description());
+        p.setSteps(request.steps());
+        p.setRequiredTools(request.requiredTools());
+        p.setIntervalDays(request.intervalDays());
+        return p;
+    }
+
+    private ProcedureListResponse toListResponse(Procedure p) {
+        return new ProcedureListResponse(p.getId(), p.getName(), p.getDescription(),
+                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
+    }
+
+    private ProcedureDetailResponse toDetailResponse(Procedure p) {
+        return new ProcedureDetailResponse(p.getId(), p.getName(), p.getDescription(),
+                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
+    }
+
+    private ProcedureCreateResponse toCreateResponse(Procedure p) {
+        return new ProcedureCreateResponse(p.getId(), p.getName(), p.getDescription(),
+                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
+    }
+
+    private ProcedureUpdateResponse toUpdateResponse(Procedure p) {
+        return new ProcedureUpdateResponse(p.getId(), p.getName(), p.getDescription(),
+                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
     }
 }

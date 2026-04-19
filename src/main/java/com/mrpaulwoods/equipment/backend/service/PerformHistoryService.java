@@ -1,7 +1,9 @@
 package com.mrpaulwoods.equipment.backend.service;
 
+import com.mrpaulwoods.equipment.backend.dto.PerformCreateResponse;
+import com.mrpaulwoods.equipment.backend.dto.PerformListResponse;
+import com.mrpaulwoods.equipment.backend.dto.PerformRequest;
 import com.mrpaulwoods.equipment.backend.entity.Perform;
-import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.PerformRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,21 +14,27 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class PerformHistoryService {
 
     private final ProcedureService procedureService;
     private final PerformRepository performRepository;
 
-    @Transactional(readOnly = true)
-    public List<Perform> getHistory(UUID equipmentId, UUID procedureId) {
-        Procedure procedure = procedureService.getById(equipmentId, procedureId);
-        return procedure.getHistory();
+    public List<PerformListResponse> getHistory(UUID equipmentId, UUID procedureId) {
+        var procedure = procedureService.getEntityById(equipmentId, procedureId);
+        return procedure.getHistory().stream()
+                .map(p -> new PerformListResponse(p.getId(), p.getDate(), p.getNotes()))
+                .toList();
     }
 
-    public Perform record(UUID equipmentId, UUID procedureId, Perform perform) {
-        Procedure procedure = procedureService.getById(equipmentId, procedureId);
+    @Transactional
+    public PerformCreateResponse record(UUID equipmentId, UUID procedureId, PerformRequest request) {
+        var procedure = procedureService.getEntityById(equipmentId, procedureId);
+        var perform = new Perform();
+        perform.setDate(request.date());
+        perform.setNotes(request.notes());
         perform.setProcedure(procedure);
-        return performRepository.save(perform);
+        var saved = performRepository.save(perform);
+        return new PerformCreateResponse(saved.getId(), saved.getDate(), saved.getNotes());
     }
 }

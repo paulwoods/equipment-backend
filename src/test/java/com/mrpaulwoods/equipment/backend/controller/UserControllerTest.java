@@ -1,6 +1,5 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.UserRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import com.mrpaulwoods.equipment.backend.util.Role;
@@ -10,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,19 +37,21 @@ class UserControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(userController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(userController)
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .build();
     }
 
     @Test
     void create_withValidBody_returns201() throws Exception {
         UserResponse response = new UserResponse(USER_ID, "new@example.com", Role.USER);
-        when(userService.create(any(UserRequest.class))).thenReturn(response);
+        when(userService.create(any())).thenReturn(response);
 
         String body = """
                 {"email": "new@example.com", "password": "secret", "role": "USER"}
                 """;
 
-        mockMvc.perform(post("/api/users")
+        mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -64,29 +66,31 @@ class UserControllerTest {
                 {"email": "bad"}
                 """;
 
-        mockMvc.perform(post("/api/users")
+        mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void findAll_returnsUserList() throws Exception {
-        when(userService.findAll()).thenReturn(List.of(
+    void findAll_returnsPagedUserList() throws Exception {
+        var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
+        var page = new org.springframework.data.domain.PageImpl<>(List.of(
                 new UserResponse(USER_ID, "admin@example.com", Role.ADMIN)
-        ));
+        ), pageable, 1);
+        when(userService.findAll(any())).thenReturn(page);
 
-        mockMvc.perform(get("/api/users"))
+        mockMvc.perform(get("/api/v1/users"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].email").value("admin@example.com"))
-                .andExpect(jsonPath("$[0].role").value("ADMIN"));
+                .andExpect(jsonPath("$.content[0].email").value("admin@example.com"))
+                .andExpect(jsonPath("$.content[0].role").value("ADMIN"));
     }
 
     @Test
     void delete_whenExists_returns204() throws Exception {
         doNothing().when(userService).delete(USER_ID);
 
-        mockMvc.perform(delete("/api/users/{id}", USER_ID))
+        mockMvc.perform(delete("/api/v1/users/{id}", USER_ID))
                 .andExpect(status().isNoContent());
 
         verify(userService).delete(USER_ID);
@@ -98,7 +102,7 @@ class UserControllerTest {
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
                 .when(userService).delete(missing);
 
-        mockMvc.perform(delete("/api/users/{id}", missing))
+        mockMvc.perform(delete("/api/v1/users/{id}", missing))
                 .andExpect(status().isNotFound());
     }
 }

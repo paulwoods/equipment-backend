@@ -5,6 +5,7 @@ import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
+import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class DashboardServiceTest {
 
     @Mock
     private EquipmentRepository equipmentRepository;
+
+    @Mock
+    private ProcedureRepository procedureRepository;
 
     @InjectMocks
     private DashboardService dashboardService;
@@ -60,14 +64,16 @@ class DashboardServiceTest {
 
     @Test
     void getDashboardItems_whenNoEquipment_returnsEmptyList() {
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of());
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of());
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of());
         assertThat(dashboardService.getDashboardItems()).isEmpty();
     }
 
     @Test
     void getDashboardItems_withNullProcedures_skipsEquipment() {
         equipment.setProcedures(null);
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of());
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         assertThat(dashboardService.getDashboardItems()).isEmpty();
     }
@@ -76,7 +82,8 @@ class DashboardServiceTest {
     void getDashboardItems_withNoHistory_statusIsNoHistory() {
         Procedure proc = procedureWithHistory(UUID.randomUUID(), "Oil Change", 30, null);
         equipment.setProcedures(List.of(proc));
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of(proc));
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
@@ -90,7 +97,8 @@ class DashboardServiceTest {
     void getDashboardItems_withUpcomingProcedure_statusIsUpcoming() {
         Procedure proc = procedureWithHistory(UUID.randomUUID(), "Oil Change", 30, LocalDate.now().minusDays(10));
         equipment.setProcedures(List.of(proc));
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of(proc));
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
@@ -102,7 +110,8 @@ class DashboardServiceTest {
     void getDashboardItems_withOverdueProcedure_statusIsOverdue() {
         Procedure proc = procedureWithHistory(UUID.randomUUID(), "Oil Change", 30, LocalDate.now().minusDays(40));
         equipment.setProcedures(List.of(proc));
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of(proc));
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
@@ -115,7 +124,8 @@ class DashboardServiceTest {
         Procedure overdue = procedureWithHistory(UUID.randomUUID(), "Overdue", 30, LocalDate.now().minusDays(40));
         Procedure upcoming = procedureWithHistory(UUID.randomUUID(), "Upcoming", 30, LocalDate.now().minusDays(5));
         equipment.setProcedures(List.of(upcoming, overdue)); // reversed order
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of(upcoming, overdue));
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
@@ -127,7 +137,8 @@ class DashboardServiceTest {
     void getDashboardItems_equipmentNameIsManufacturerPlusModel() {
         Procedure proc = procedureWithHistory(UUID.randomUUID(), "Oil Change", 30, null);
         equipment.setProcedures(List.of(proc));
-        when(equipmentRepository.findAllWithProceduresAndHistory()).thenReturn(List.of(equipment));
+        when(procedureRepository.findAllWithHistory()).thenReturn(List.of(proc));
+        when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 

@@ -4,11 +4,9 @@ import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
-import com.mrpaulwoods.equipment.backend.repository.UserRepository;
-import com.mrpaulwoods.equipment.backend.service.JwtService;
-import com.mrpaulwoods.equipment.backend.service.LoginRateLimiterService;
-import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
-import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
+import com.mrpaulwoods.equipment.backend.service.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,18 +28,20 @@ import java.util.Arrays;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Tag(name = "Authentication", description = "Login, logout, token refresh, and current-user endpoints")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserDetailsServiceImpl userDetailsService;
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final AppProperties appProperties;
     private final LoginRateLimiterService loginRateLimiter;
 
+    @Operation(summary = "Log in with email and password")
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(
             @Valid @RequestBody LoginRequest loginRequest,
@@ -49,7 +49,7 @@ public class AuthController {
             HttpServletResponse response
     ) {
         String clientIp = request.getRemoteAddr();
-        String email = loginRequest.getEmail();
+        String email = loginRequest.email();
 
         if (loginRateLimiter.isBlocked(clientIp, email)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many login attempts");
@@ -57,13 +57,13 @@ public class AuthController {
 
         try {
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(email, loginRequest.getPassword())
+                    new UsernamePasswordAuthenticationToken(email, loginRequest.password())
             );
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             assert userDetails != null;
             String accessToken = jwtService.generateToken(userDetails);
 
-            User user = userRepository.findByEmail(email)
+            User user = userService.findByEmail(email)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
@@ -78,10 +78,11 @@ public class AuthController {
         }
     }
 
+    @Operation(summary = "Log out and clear auth cookies")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
         if (authentication != null) {
-            userRepository.findByEmail(authentication.getName())
+            userService.findByEmail(authentication.getName())
                     .ifPresent(refreshTokenService::deleteByUser);
         }
         clearCookie(request, response, "access_token", "/");
@@ -89,6 +90,7 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Rotate refresh token and issue a new access token")
     @PostMapping("/refresh")
     public ResponseEntity<Void> refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshTokenValue = extractCookie(request, "refresh_token");
@@ -108,6 +110,7 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Return the currently authenticated user")
     @GetMapping("/me")
     public ResponseEntity<Map<String, String>> me(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -135,7 +138,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(isCookieSecure(request))
                 .sameSite("Lax")
-                .path("/api/auth")
+                .path("/api/v1/auth")
                 .maxAge(7 * 24 * 3600)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
