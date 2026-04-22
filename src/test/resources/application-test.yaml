@@ -1,21 +1,41 @@
+server:
+  forward-headers-strategy: native
+
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    url: jdbc:postgresql://localhost:5432/postgres
+    user: postgres
+    password: postgres
   mail:
-    host: localhost
-    port: 3025
-    username: test
-    password: test
+    host: smtp.gmail.com
+    port: 587
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
     properties:
-      mail.smtp.auth: false
-      mail.smtp.starttls.enable: false
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+  application:
+    name: equipment
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
 
 app:
   jwt-secret: AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-abcdefghijklmnopqrstuvwxyz
-  jwt-expiration-ms: 3600000
-  smtp-from: no-reply@test.local
-  app-url: http://localhost
+  smtp-from: no-reply@dev.local
+  app-url: http://localhost:8080
   cookie-secure: false
-  login-max-attempts: 5
-  login-lockout-duration-ms: 900000
+  jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
+  login-max-attempts: ${APP_LOGIN_MAX_ATTEMPTS:5}
+  login-lockout-duration-ms: ${APP_LOGIN_LOCKOUT_DURATION_MS:900000}
 
 scheduling:
-  enabled: false
+  enabled: true
