@@ -1,8 +1,13 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.UserResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserCreateResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserDetailResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserListResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserUpdateResponse;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import com.mrpaulwoods.equipment.backend.util.Role;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,15 +17,22 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,32 +41,66 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000099");
+    private static final String ADMIN_EMAIL = "admin@example.com";
+
     @Mock
     private UserService userService;
+
     @InjectMocks
     private UserController userController;
+
     private MockMvc mockMvc;
+    private User adminUser;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(userController)
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .addFilter((request, response, chain) -> {
+                    var auth = SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null) {
+                        var wrapper = new org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestWrapper(
+                                (jakarta.servlet.http.HttpServletRequest) request, "ROLE_");
+                        chain.doFilter(wrapper, response);
+                    } else {
+                        chain.doFilter(request, response);
+                    }
+                })
                 .build();
+
+        adminUser = new User();
+        adminUser.setId(USER_ID);
+        adminUser.setEmail(ADMIN_EMAIL);
+        adminUser.setRole(Role.ADMIN);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void authenticateAsAdmin() {
+        var auth = new UsernamePasswordAuthenticationToken(
+                ADMIN_EMAIL, null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+        given(userService.findByEmail(ADMIN_EMAIL)).willReturn(Optional.of(adminUser));
     }
 
     @Test
     void create_withValidBody_returns201() throws Exception {
-        UserResponse response = new UserResponse(USER_ID, "new@example.com", Role.USER);
-        when(userService.create(any())).thenReturn(response);
+        var response = new UserCreateResponse(USER_ID, "Alice", "new@example.com", Role.USER);
+        given(userService.create(any())).willReturn(response);
 
         String body = """
-                {"email": "new@example.com", "password": "secret", "role": "USER"}
+                {"name": "Alice", "email": "new@example.com", "password": "secret", "role": "USER"}
                 """;
 
         mockMvc.perform(post("/api/v1/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Alice"))
                 .andExpect(jsonPath("$.email").value("new@example.com"))
                 .andExpect(jsonPath("$.role").value("USER"))
                 .andExpect(jsonPath("$.id").value(USER_ID.toString()));
@@ -76,31 +122,65 @@ class UserControllerTest {
     void findAll_returnsPagedUserList() throws Exception {
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
         var page = new org.springframework.data.domain.PageImpl<>(List.of(
-                new UserResponse(USER_ID, "admin@example.com", Role.ADMIN)
+                new UserListResponse(USER_ID, "Admin", ADMIN_EMAIL, Role.ADMIN)
         ), pageable, 1);
-        when(userService.findAll(any())).thenReturn(page);
+        given(userService.findAll(any())).willReturn(page);
 
         mockMvc.perform(get("/api/v1/users"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].email").value("admin@example.com"))
+                .andExpect(jsonPath("$.content[0].email").value(ADMIN_EMAIL))
+                .andExpect(jsonPath("$.content[0].name").value("Admin"))
                 .andExpect(jsonPath("$.content[0].role").value("ADMIN"));
     }
 
     @Test
-    void delete_whenExists_returns204() throws Exception {
-        doNothing().when(userService).delete(USER_ID);
+    void findById_returnsUserDetail() throws Exception {
+        var detail = new UserDetailResponse(USER_ID, "Alice", "alice@example.com", Role.USER);
+        given(userService.findById(USER_ID)).willReturn(detail);
 
-        mockMvc.perform(delete("/api/v1/users/{id}", USER_ID))
+        mockMvc.perform(get("/api/v1/users/{id}", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Alice"))
+                .andExpect(jsonPath("$.email").value("alice@example.com"));
+    }
+
+    @Test
+    void update_withValidBody_returns200() throws Exception {
+        authenticateAsAdmin();
+        UUID targetId = UUID.randomUUID();
+        var response = new UserUpdateResponse(targetId, "Updated", "updated@example.com", Role.USER);
+        given(userService.update(any(), any(), any())).willReturn(response);
+
+        String body = """
+                {"name": "Updated", "email": "updated@example.com", "role": "USER"}
+                """;
+
+        mockMvc.perform(put("/api/v1/users/{id}", targetId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated"))
+                .andExpect(jsonPath("$.email").value("updated@example.com"));
+    }
+
+    @Test
+    void delete_whenExists_returns204() throws Exception {
+        authenticateAsAdmin();
+        UUID targetId = UUID.randomUUID();
+        doNothing().when(userService).delete(any(), any());
+
+        mockMvc.perform(delete("/api/v1/users/{id}", targetId))
                 .andExpect(status().isNoContent());
 
-        verify(userService).delete(USER_ID);
+        then(userService).should().delete(targetId, USER_ID);
     }
 
     @Test
     void delete_whenNotFound_returns404() throws Exception {
+        authenticateAsAdmin();
         UUID missing = UUID.randomUUID();
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
-                .when(userService).delete(missing);
+                .when(userService).delete(any(), any());
 
         mockMvc.perform(delete("/api/v1/users/{id}", missing))
                 .andExpect(status().isNotFound());

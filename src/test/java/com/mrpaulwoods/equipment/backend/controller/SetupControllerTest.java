@@ -82,7 +82,7 @@ class SetupControllerTest {
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.ADMIN);
-        when(userService.createInternal("admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -114,7 +114,7 @@ class SetupControllerTest {
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.ADMIN);
-        when(userService.createInternal("admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -162,7 +162,7 @@ class SetupControllerTest {
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.ADMIN);
-        when(userService.createInternal("admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));

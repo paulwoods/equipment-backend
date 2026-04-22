@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.UserRequest;
-import com.mrpaulwoods.equipment.backend.dto.UserResponse;
+import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,14 +14,16 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "Users", description = "Admin-only user management")
+@Tag(name = "Users", description = "User management")
 public class UserController {
 
     private final UserService userService;
@@ -29,23 +31,46 @@ public class UserController {
     @Operation(summary = "Create a new user account")
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request) {
+    public ResponseEntity<UserCreateResponse> create(@Valid @RequestBody UserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request));
     }
 
     @Operation(summary = "List all users (paginated)")
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<Page<UserResponse>> findAll(
+    public ResponseEntity<Page<UserListResponse>> findAll(
             @PageableDefault(size = 20, sort = "email", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(userService.findAll(pageable));
+    }
+
+    @Operation(summary = "Get user by ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDetailResponse> findById(@PathVariable UUID id) {
+        return ResponseEntity.ok(userService.findById(id));
+    }
+
+    @Operation(summary = "Update a user account")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<UserUpdateResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UserUpdateRequest request,
+            Authentication authentication) {
+        UUID currentUserId = currentUserId(authentication);
+        return ResponseEntity.ok(userService.update(id, request, currentUserId));
     }
 
     @Operation(summary = "Delete a user account")
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        userService.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
+        UUID currentUserId = currentUserId(authentication);
+        userService.delete(id, currentUserId);
         return ResponseEntity.noContent().build();
+    }
+
+    private UUID currentUserId(Authentication authentication) {
+        return userService.findByEmail(authentication.getName())
+                .map(User::getId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
 }

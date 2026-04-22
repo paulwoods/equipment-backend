@@ -1,7 +1,6 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.dto.UserRequest;
-import com.mrpaulwoods.equipment.backend.dto.UserResponse;
+import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.util.Role;
@@ -21,7 +20,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -35,49 +36,55 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    private User sampleUser(UUID id, String email, Role role) {
+    private User sampleUser(UUID id, String name, String email, Role role) {
         User user = new User();
         user.setId(id);
+        user.setName(name);
         user.setEmail(email);
         user.setPassword("hashed");
         user.setRole(role);
         return user;
     }
 
+    // --- create ---
+
     @Test
     void create_withNewEmail_savesAndReturnsResponse() {
         UUID id = UUID.randomUUID();
-        var request = new UserRequest("new@example.com", "secret", Role.USER);
+        var request = new UserRequest("Alice", "alice@example.com", "secret", Role.USER);
 
-        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("secret")).thenReturn("hashed");
-        when(userRepository.save(any())).thenAnswer(inv -> {
+        given(userRepository.findByEmail("alice@example.com")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("secret")).willReturn("hashed");
+        given(userRepository.save(any())).willAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(id);
             return u;
         });
 
-        UserResponse response = userService.create(request);
+        UserCreateResponse response = userService.create(request);
 
-        assertThat(response.email()).isEqualTo("new@example.com");
+        assertThat(response.name()).isEqualTo("Alice");
+        assertThat(response.email()).isEqualTo("alice@example.com");
         assertThat(response.role()).isEqualTo(Role.USER);
         assertThat(response.id()).isEqualTo(id);
     }
 
     @Test
     void create_withDuplicateEmail_throwsConflict() {
-        var request = new UserRequest("existing@example.com", "secret", Role.ADMIN);
+        var request = new UserRequest("Existing", "existing@example.com", "secret", Role.ADMIN);
 
-        when(userRepository.findByEmail("existing@example.com"))
-                .thenReturn(Optional.of(sampleUser(UUID.randomUUID(), "existing@example.com", Role.ADMIN)));
+        given(userRepository.findByEmail("existing@example.com"))
+                .willReturn(Optional.of(sampleUser(UUID.randomUUID(), "Existing", "existing@example.com", Role.ADMIN)));
 
         assertThatThrownBy(() -> userService.create(request))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.CONFLICT.value());
 
-        verify(userRepository, never()).save(any());
+        then(userRepository).should(never()).save(any());
     }
+
+    // --- findAll ---
 
     @Test
     void findAll_returnsPagedUsers() {
@@ -85,59 +92,156 @@ class UserServiceTest {
         UUID id2 = UUID.randomUUID();
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
         var page = new org.springframework.data.domain.PageImpl<>(List.of(
-                sampleUser(id1, "a@example.com", Role.ADMIN),
-                sampleUser(id2, "b@example.com", Role.USER)
+                sampleUser(id1, "Alice", "a@example.com", Role.ADMIN),
+                sampleUser(id2, "Bob", "b@example.com", Role.USER)
         ));
-        when(userRepository.findAll(pageable)).thenReturn(page);
+        given(userRepository.findAll(pageable)).willReturn(page);
 
         var result = userService.findAll(pageable);
 
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).email()).isEqualTo("a@example.com");
+        assertThat(result.getContent().get(0).name()).isEqualTo("Alice");
         assertThat(result.getContent().get(1).role()).isEqualTo(Role.USER);
     }
+
+    // --- findById ---
+
+    @Test
+    void findById_existingId_returnsDetail() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+
+        UserDetailResponse result = userService.findById(id);
+
+        assertThat(result.id()).isEqualTo(id);
+        assertThat(result.name()).isEqualTo("Alice");
+        assertThat(result.email()).isEqualTo("alice@example.com");
+    }
+
+    @Test
+    void findById_nonExistingId_throwsNotFound() {
+        UUID id = UUID.randomUUID();
+        given(userRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.findById(id))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    // --- update ---
+
+    @Test
+    void update_validRequest_updatesAndReturnsResponse() {
+        UUID id = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User user = sampleUser(id, "Old Name", "old@example.com", Role.USER);
+        var request = new UserUpdateRequest("New Name", "new@example.com", Role.ADMIN);
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.findByEmail("new@example.com")).willReturn(Optional.empty());
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        UserUpdateResponse result = userService.update(id, request, currentUserId);
+
+        assertThat(result.name()).isEqualTo("New Name");
+        assertThat(result.email()).isEqualTo("new@example.com");
+        assertThat(result.role()).isEqualTo(Role.ADMIN);
+    }
+
+    @Test
+    void update_emailInUseByOtherUser_throwsConflict() {
+        UUID id = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User other = sampleUser(otherId, "Bob", "taken@example.com", Role.USER);
+        var request = new UserUpdateRequest("Alice", "taken@example.com", Role.USER);
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.findByEmail("taken@example.com")).willReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> userService.update(id, request, currentUserId))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.CONFLICT.value());
+    }
+
+    @Test
+    void update_nonExistingUser_throwsNotFound() {
+        UUID id = UUID.randomUUID();
+        var request = new UserUpdateRequest("Alice", "alice@example.com", Role.USER);
+        given(userRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.update(id, request, UUID.randomUUID()))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    // --- delete ---
 
     @Test
     void delete_whenUserExists_deletesById() {
         UUID id = UUID.randomUUID();
-        when(userRepository.existsById(id)).thenReturn(true);
+        UUID currentUserId = UUID.randomUUID();
+        given(userRepository.existsById(id)).willReturn(true);
 
-        userService.delete(id);
+        userService.delete(id, currentUserId);
 
-        verify(userRepository).deleteById(id);
+        then(userRepository).should().deleteById(id);
     }
 
     @Test
-    void isSetupRequired_whenNoUsers_returnsTrue() {
-        when(userRepository.count()).thenReturn(0L);
-        assertThat(userService.isSetupRequired()).isTrue();
-    }
-
-    @Test
-    void isSetupRequired_whenUsersExist_returnsFalse() {
-        when(userRepository.count()).thenReturn(1L);
-        assertThat(userService.isSetupRequired()).isFalse();
-    }
-
-    @Test
-    void findByEmail_delegatesToRepository() {
+    void delete_selfDelete_throwsForbidden() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "test@example.com", Role.USER);
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
 
-        assertThat(userService.findByEmail("test@example.com")).contains(user);
+        assertThatThrownBy(() -> userService.delete(id, id))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.FORBIDDEN.value());
+
+        then(userRepository).should(never()).deleteById(any());
     }
 
     @Test
     void delete_whenUserNotFound_throwsNotFound() {
         UUID id = UUID.randomUUID();
-        when(userRepository.existsById(id)).thenReturn(false);
+        UUID currentUserId = UUID.randomUUID();
+        given(userRepository.existsById(id)).willReturn(false);
 
-        assertThatThrownBy(() -> userService.delete(id))
+        assertThatThrownBy(() -> userService.delete(id, currentUserId))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
 
-        verify(userRepository, never()).deleteById(any());
+        then(userRepository).should(never()).deleteById(any());
+    }
+
+    // --- isSetupRequired ---
+
+    @Test
+    void isSetupRequired_whenNoUsers_returnsTrue() {
+        given(userRepository.count()).willReturn(0L);
+        assertThat(userService.isSetupRequired()).isTrue();
+    }
+
+    @Test
+    void isSetupRequired_whenUsersExist_returnsFalse() {
+        given(userRepository.count()).willReturn(1L);
+        assertThat(userService.isSetupRequired()).isFalse();
+    }
+
+    // --- findByEmail ---
+
+    @Test
+    void findByEmail_delegatesToRepository() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "test@example.com", Role.USER);
+        given(userRepository.findByEmail("test@example.com")).willReturn(Optional.of(user));
+
+        assertThat(userService.findByEmail("test@example.com")).contains(user);
     }
 }
