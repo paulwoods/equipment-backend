@@ -89,8 +89,9 @@ class UserControllerTest {
 
     @Test
     void create_withValidBody_returns201() throws Exception {
+        authenticateAsAdmin();
         var response = new UserCreateResponse(USER_ID, "Alice", "new@example.com", Role.USER);
-        given(userService.create(any())).willReturn(response);
+        given(userService.create(any(), any())).willReturn(response);
 
         String body = """
                 {"name": "Alice", "email": "new@example.com", "password": "secret", "role": "USER"}
@@ -149,7 +150,7 @@ class UserControllerTest {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
         var response = new UserUpdateResponse(targetId, "Updated", "updated@example.com", Role.USER);
-        given(userService.update(any(), any(), any())).willReturn(response);
+        given(userService.update(any(), any(), any(), any())).willReturn(response);
 
         String body = """
                 {"name": "Updated", "email": "updated@example.com", "role": "USER"}
@@ -167,12 +168,12 @@ class UserControllerTest {
     void delete_whenExists_returns204() throws Exception {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
-        doNothing().when(userService).delete(any(), any());
+        doNothing().when(userService).delete(any(), any(), any());
 
         mockMvc.perform(delete("/api/v1/users/{id}", targetId))
                 .andExpect(status().isNoContent());
 
-        then(userService).should().delete(targetId, USER_ID);
+        then(userService).should().delete(targetId, USER_ID, Role.ADMIN);
     }
 
     @Test
@@ -180,7 +181,7 @@ class UserControllerTest {
         authenticateAsAdmin();
         UUID missing = UUID.randomUUID();
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
-                .when(userService).delete(any(), any());
+                .when(userService).delete(any(), any(), any());
 
         mockMvc.perform(delete("/api/v1/users/{id}", missing))
                 .andExpect(status().isNotFound());

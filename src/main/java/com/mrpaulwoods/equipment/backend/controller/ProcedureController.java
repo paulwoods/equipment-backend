@@ -23,14 +23,14 @@ public class ProcedureController {
     private final ProcedureService procedureService;
 
     @Operation(summary = "List all procedures for an equipment record")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
     public ResponseEntity<List<ProcedureListResponse>> getAll(@PathVariable UUID equipmentId) {
         return ResponseEntity.ok(procedureService.getAllForEquipment(equipmentId));
     }
 
     @Operation(summary = "Get a single procedure by ID")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/{procedureId}")
     public ResponseEntity<ProcedureDetailResponse> getById(@PathVariable UUID equipmentId,
                                                            @PathVariable UUID procedureId) {
@@ -38,7 +38,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Create a new procedure for an equipment record")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<ProcedureCreateResponse> create(@PathVariable UUID equipmentId,
                                                           @Valid @RequestBody ProcedureRequest request) {
@@ -46,7 +46,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Update an existing procedure")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{procedureId}")
     public ResponseEntity<ProcedureUpdateResponse> update(@PathVariable UUID equipmentId,
                                                           @PathVariable UUID procedureId,
@@ -55,7 +55,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Delete a procedure")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/{procedureId}")
     public ResponseEntity<Void> delete(@PathVariable UUID equipmentId, @PathVariable UUID procedureId) {
         procedureService.delete(equipmentId, procedureId);

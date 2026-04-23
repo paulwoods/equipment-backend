@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -24,14 +25,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional
-    public UserCreateResponse create(UserRequest request) {
-        if (userRepository.findByEmail(request.email()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
-        }
-        User saved = createInternal(request.name(), request.email(), request.password(), request.role());
-        return new UserCreateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
-    }
+    private static final Set<Role> ADMIN_MANAGEABLE_ROLES = Set.of(Role.USER, Role.EDIT);
 
     @Transactional
     public User createInternal(String name, String email, String password, Role role) {
@@ -55,9 +49,26 @@ public class UserService {
     }
 
     @Transactional
-    public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId) {
+    public UserCreateResponse create(UserRequest request, Role callerRole) {
+        assertCallerCanManageRole(callerRole, request.role());
+        if (userRepository.findByEmail(request.email()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+        }
+        User saved = createInternal(request.name(), request.email(), request.password(), request.role());
+        return new UserCreateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
+    }
+
+    @Transactional
+    public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Role callerRole) {
+        if (id.equals(currentUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot modify your own account");
+        }
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        assertCallerCanManageRole(callerRole, user.getRole());
+        assertCallerCanManageRole(callerRole, request.role());
 
         if (!user.getEmail().equals(request.email())) {
             userRepository.findByEmail(request.email()).ifPresent(existing -> {
@@ -75,14 +86,24 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(UUID id, UUID currentUserId) {
+    public void delete(UUID id, UUID currentUserId, Role callerRole) {
         if (id.equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");
         }
-        if (!userRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        assertCallerCanManageRole(callerRole, target.getRole());
         userRepository.deleteById(id);
+    }
+
+    private void assertCallerCanManageRole(Role callerRole, Role targetRole) {
+        if (callerRole == Role.SYSTEM_ADMIN) {
+            return;
+        }
+        if (callerRole == Role.ADMIN && ADMIN_MANAGEABLE_ROLES.contains(targetRole)) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage this role");
     }
 
     public boolean isSetupRequired() {

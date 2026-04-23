@@ -52,7 +52,7 @@ public class SetupController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
         }
 
-        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Role.ADMIN);
+        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Role.SYSTEM_ADMIN);
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateToken(userDetails);

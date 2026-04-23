@@ -41,7 +41,7 @@ public class EquipmentController {
     private final ObjectMapper objectMapper;
 
     @Operation(summary = "List all equipment (paginated)")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
     public ResponseEntity<Page<EquipmentListResponse>> getAll(
             @PageableDefault(size = 20, sort = "manufacturer", direction = Sort.Direction.ASC) Pageable pageable) {
@@ -49,7 +49,7 @@ public class EquipmentController {
     }
 
     @Operation(summary = "Export all equipment as a downloadable JSON file")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportEquipment() throws IOException {
         var equipment = exportService.exportAll();
@@ -62,7 +62,7 @@ public class EquipmentController {
     }
 
     @Operation(summary = "Import equipment from a JSON file")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImportResult> importEquipment(@RequestParam("file") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
@@ -81,21 +81,21 @@ public class EquipmentController {
     }
 
     @Operation(summary = "Get a single equipment record by ID")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<EquipmentDetailResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(equipmentService.getById(id));
     }
 
     @Operation(summary = "Create a new equipment record")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<EquipmentCreateResponse> create(@Valid @RequestBody EquipmentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(equipmentService.create(request));
     }
 
     @Operation(summary = "Update an existing equipment record")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<EquipmentUpdateResponse> update(@PathVariable UUID id,
                                                           @Valid @RequestBody EquipmentRequest request) {
@@ -103,7 +103,7 @@ public class EquipmentController {
     }
 
     @Operation(summary = "Delete an equipment record")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         equipmentService.delete(id);

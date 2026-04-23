@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
+import com.mrpaulwoods.equipment.backend.util.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,10 +30,10 @@ public class UserController {
     private final UserService userService;
 
     @Operation(summary = "Create a new user account")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
-    public ResponseEntity<UserCreateResponse> create(@Valid @RequestBody UserRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request));
+    public ResponseEntity<UserCreateResponse> create(@Valid @RequestBody UserRequest request, Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, callerRole(authentication)));
     }
 
     @Operation(summary = "List all users (paginated)")
@@ -49,28 +50,34 @@ public class UserController {
     }
 
     @Operation(summary = "Update a user account")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserUpdateResponse> update(
             @PathVariable UUID id,
             @Valid @RequestBody UserUpdateRequest request,
             Authentication authentication) {
         UUID currentUserId = currentUserId(authentication);
-        return ResponseEntity.ok(userService.update(id, request, currentUserId));
+        return ResponseEntity.ok(userService.update(id, request, currentUserId, callerRole(authentication)));
     }
 
     @Operation(summary = "Delete a user account")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
         UUID currentUserId = currentUserId(authentication);
-        userService.delete(id, currentUserId);
+        userService.delete(id, currentUserId, callerRole(authentication));
         return ResponseEntity.noContent().build();
     }
 
     private UUID currentUserId(Authentication authentication) {
         return userService.findByEmail(authentication.getName())
                 .map(User::getId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+    }
+
+    private Role callerRole(Authentication authentication) {
+        return userService.findByEmail(authentication.getName())
+                .map(User::getRole)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
 }
