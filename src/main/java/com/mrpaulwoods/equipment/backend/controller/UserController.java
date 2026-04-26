@@ -69,6 +69,27 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Update own name and email")
+    @PreAuthorize("isAuthenticated()")
+    @PutMapping("/me")
+    public ResponseEntity<UserSelfUpdateResponse> updateMe(
+            @Valid @RequestBody UserSelfUpdateRequest request,
+            Authentication authentication) {
+        UUID currentUserId = currentUserId(authentication);
+        return ResponseEntity.ok(userService.updateSelf(currentUserId, request));
+    }
+
+    @Operation(summary = "Change own password")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/me/password")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody UserPasswordChangeRequest request,
+            Authentication authentication) {
+        UUID currentUserId = currentUserId(authentication);
+        userService.changePassword(currentUserId, request);
+        return ResponseEntity.noContent().build();
+    }
+
     private UUID currentUserId(Authentication authentication) {
         return userService.findByEmail(authentication.getName())
                 .map(User::getId)

@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.UserCreateResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserDetailResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserListResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserSelfUpdateResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserUpdateResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
@@ -185,5 +186,90 @@ class UserControllerTest {
 
         mockMvc.perform(delete("/api/v1/users/{id}", missing))
                 .andExpect(status().isNotFound());
+    }
+
+    // --- PUT /me ---
+
+    @Test
+    void updateMe_withValidBody_returns200() throws Exception {
+        authenticateAsAdmin();
+        var response = new UserSelfUpdateResponse(USER_ID, "Updated", "updated@example.com", Role.ADMIN);
+        given(userService.updateSelf(any(), any())).willReturn(response);
+
+        String body = """
+                {"name": "Updated", "email": "updated@example.com"}
+                """;
+
+        mockMvc.perform(put("/api/v1/users/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated"))
+                .andExpect(jsonPath("$.email").value("updated@example.com"));
+    }
+
+    @Test
+    void updateMe_withMissingFields_returns400() throws Exception {
+        mockMvc.perform(put("/api/v1/users/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateMe_whenEmailConflict_returns409() throws Exception {
+        authenticateAsAdmin();
+        given(userService.updateSelf(any(), any()))
+                .willThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use"));
+
+        String body = """
+                {"name": "Admin", "email": "taken@example.com"}
+                """;
+
+        mockMvc.perform(put("/api/v1/users/me")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict());
+    }
+
+    // --- POST /me/password ---
+
+    @Test
+    void changePassword_withValidBody_returns204() throws Exception {
+        authenticateAsAdmin();
+        doNothing().when(userService).changePassword(any(), any());
+
+        String body = """
+                {"currentPassword": "oldpass", "newPassword": "newpass"}
+                """;
+
+        mockMvc.perform(post("/api/v1/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void changePassword_withMissingFields_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void changePassword_whenWrongCurrentPassword_returns400() throws Exception {
+        authenticateAsAdmin();
+        doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect"))
+                .when(userService).changePassword(any(), any());
+
+        String body = """
+                {"currentPassword": "wrong", "newPassword": "newpass"}
+                """;
+
+        mockMvc.perform(post("/api/v1/users/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
     }
 }
