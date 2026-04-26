@@ -118,8 +118,10 @@ public class AuthController {
         }
         String email = authentication.getName();
         String role = authentication.getAuthorities().iterator().next().getAuthority();
-        assert role != null;
-        return ResponseEntity.ok(Map.of("email", email, "role", role));
+        String id = userService.findByEmail(email)
+                .map(u -> u.getId().toString())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        return ResponseEntity.ok(Map.of("email", email, "role", role, "id", id));
     }
 
     private void setAccessTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {

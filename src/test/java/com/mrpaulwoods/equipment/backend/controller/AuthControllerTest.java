@@ -347,10 +347,17 @@ class AuthControllerTest {
         when(auth.getAuthorities()).thenAnswer(_ ->
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
+        User user = new User();
+        user.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        user.setEmail("admin@example.com");
+        user.setRole(Role.ADMIN);
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("admin@example.com"))
-                .andExpect(jsonPath("$.role").value("ROLE_ADMIN"));
+                .andExpect(jsonPath("$.role").value("ROLE_ADMIN"))
+                .andExpect(jsonPath("$.id").value("00000000-0000-0000-0000-000000000001"));
     }
 
     @Test
