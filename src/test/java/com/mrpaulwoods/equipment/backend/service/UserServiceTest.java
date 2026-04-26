@@ -285,6 +285,72 @@ class UserServiceTest {
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
+    // --- updateSelf ---
+
+    @Test
+    void updateSelf_happyPath_updatesNameAndEmail() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Old Name", "old@example.com", Role.USER);
+        var request = new UserSelfUpdateRequest("New Name", "new@example.com");
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.findByEmail("new@example.com")).willReturn(Optional.empty());
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        UserSelfUpdateResponse result = userService.updateSelf(id, request);
+
+        assertThat(result.name()).isEqualTo("New Name");
+        assertThat(result.email()).isEqualTo("new@example.com");
+        assertThat(result.role()).isEqualTo(Role.USER);
+    }
+
+    @Test
+    void updateSelf_emailUnchanged_doesNotCheckUniqueness() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        var request = new UserSelfUpdateRequest("Alice Updated", "alice@example.com");
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        UserSelfUpdateResponse result = userService.updateSelf(id, request);
+
+        assertThat(result.name()).isEqualTo("Alice Updated");
+        then(userRepository).should(never()).findByEmail(any());
+    }
+
+    @Test
+    void updateSelf_emailTakenByOtherUser_throwsConflict() {
+        UUID id = UUID.randomUUID();
+        UUID otherId = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User other = sampleUser(otherId, "Bob", "taken@example.com", Role.USER);
+        var request = new UserSelfUpdateRequest("Alice", "taken@example.com");
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.findByEmail("taken@example.com")).willReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> userService.updateSelf(id, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.CONFLICT.value());
+
+        then(userRepository).should(never()).save(any());
+    }
+
+    @Test
+    void updateSelf_userNotFound_throwsNotFound() {
+        UUID id = UUID.randomUUID();
+        var request = new UserSelfUpdateRequest("Alice", "alice@example.com");
+
+        given(userRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateSelf(id, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
     // --- delete ---
 
     @Test

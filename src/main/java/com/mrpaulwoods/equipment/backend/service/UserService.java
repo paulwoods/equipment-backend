@@ -86,6 +86,25 @@ public class UserService {
     }
 
     @Transactional
+    public UserSelfUpdateResponse updateSelf(UUID currentUserId, UserSelfUpdateRequest request) {
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!user.getEmail().equals(request.email())) {
+            userRepository.findByEmail(request.email()).ifPresent(existing -> {
+                if (!existing.getId().equals(currentUserId)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+                }
+            });
+        }
+
+        user.setName(request.name());
+        user.setEmail(request.email());
+        User saved = userRepository.save(user);
+        return new UserSelfUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
+    }
+
+    @Transactional
     public void delete(UUID id, UUID currentUserId, Role callerRole) {
         if (id.equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");
