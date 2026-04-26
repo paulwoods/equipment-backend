@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.mrpaulwoods.equipment.backend.util.Role;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -26,6 +27,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 

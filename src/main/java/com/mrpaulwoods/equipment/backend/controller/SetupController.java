@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.SetupRequest;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
@@ -34,6 +35,7 @@ public class SetupController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserDetailsServiceImpl userDetailsService;
+    private final AppProperties appProperties;
 
     @Operation(summary = "Check whether initial setup is required")
     @GetMapping("/status")
@@ -60,7 +62,7 @@ public class SetupController {
 
         ResponseCookie accessCookie = ResponseCookie.from("access_token", accessToken)
                 .httpOnly(true)
-                .secure(request.isSecure())
+                .secure(isCookieSecure(request))
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(3600)
@@ -69,7 +71,7 @@ public class SetupController {
 
         ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshToken.getToken())
                 .httpOnly(true)
-                .secure(request.isSecure())
+                .secure(isCookieSecure(request))
                 .sameSite("Lax")
                 .path("/api/v1/auth")
                 .maxAge(7 * 24 * 3600)
@@ -77,5 +79,10 @@ public class SetupController {
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
         return ResponseEntity.ok(Map.of("email", user.getEmail()));
+    }
+
+    private boolean isCookieSecure(HttpServletRequest request) {
+        Boolean override = appProperties.getCookieSecure();
+        return override != null ? override : request.isSecure();
     }
 }

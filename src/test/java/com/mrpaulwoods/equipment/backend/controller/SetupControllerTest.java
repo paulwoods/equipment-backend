@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
@@ -46,6 +47,9 @@ class SetupControllerTest {
     @Mock
     private UserDetailsServiceImpl userDetailsService;
 
+    @Mock
+    private AppProperties appProperties;
+
     @InjectMocks
     private SetupController setupController;
 
@@ -82,7 +86,7 @@ class SetupControllerTest {
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
@@ -96,7 +100,7 @@ class SetupControllerTest {
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
         String body = """
-                {"email": "admin@example.com", "password": "secret"}
+                {"email": "admin@example.com", "password": "password123"}
                 """;
 
         mockMvc.perform(post("/api/v1/setup")
@@ -108,13 +112,14 @@ class SetupControllerTest {
 
     @Test
     void setup_overHttps_setsSecureHardenedCookies() throws Exception {
+        when(appProperties.getCookieSecure()).thenReturn(true);
         when(userService.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
@@ -131,7 +136,7 @@ class SetupControllerTest {
                         .secure(true)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "secret"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -162,7 +167,7 @@ class SetupControllerTest {
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
         user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "secret", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
@@ -178,7 +183,7 @@ class SetupControllerTest {
         MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "secret"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -196,7 +201,7 @@ class SetupControllerTest {
         when(userService.isSetupRequired()).thenReturn(false);
 
         String body = """
-                {"email": "another@example.com", "password": "secret"}
+                {"email": "another@example.com", "password": "password123"}
                 """;
 
         mockMvc.perform(post("/api/v1/setup")

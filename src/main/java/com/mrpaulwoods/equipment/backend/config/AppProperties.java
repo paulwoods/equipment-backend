@@ -18,4 +18,6 @@ public class AppProperties {
     private Boolean cookieSecure;
     private int loginMaxAttempts = 5;
     private long loginLockoutDurationMs = 15L * 60L * 1000L;
+    private int apiRateLimitMaxRequests = 100;
+    private long apiRateLimitWindowMs = 60_000L;
 }

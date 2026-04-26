@@ -7,6 +7,13 @@ spring:
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
   flyway:
     url: ${POSTGRES_DB}
     user: ${POSTGRES_USER}
@@ -26,12 +33,20 @@ spring:
       ddl-auto: validate
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  data:
+    web:
+      pageable:
+        max-page-size: 100
 
 app:
   jwt-secret: ${APP_JWT_SECRET}
   smtp-from: no-reply@dev.local
   app-url: http://localhost:8080
-  cookie-secure: false
+  cookie-secure: ${APP_COOKIE_SECURE:true}
   jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
   login-max-attempts: ${APP_LOGIN_MAX_ATTEMPTS:5}
   login-lockout-duration-ms: ${APP_LOGIN_LOCKOUT_DURATION_MS:900000}

@@ -1,10 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.UserCreateResponse;
-import com.mrpaulwoods.equipment.backend.dto.UserDetailResponse;
-import com.mrpaulwoods.equipment.backend.dto.UserListResponse;
-import com.mrpaulwoods.equipment.backend.dto.UserSelfUpdateResponse;
-import com.mrpaulwoods.equipment.backend.dto.UserUpdateResponse;
+import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import com.mrpaulwoods.equipment.backend.util.Role;
@@ -95,7 +91,7 @@ class UserControllerTest {
         given(userService.create(any(), any())).willReturn(response);
 
         String body = """
-                {"name": "Alice", "email": "new@example.com", "password": "secret", "role": "USER"}
+                {"name": "Alice", "email": "new@example.com", "password": "password123", "role": "USER"}
                 """;
 
         mockMvc.perform(post("/api/v1/users")
@@ -240,7 +236,7 @@ class UserControllerTest {
         doNothing().when(userService).changePassword(any(), any());
 
         String body = """
-                {"currentPassword": "oldpass", "newPassword": "newpass"}
+                {"currentPassword": "oldpass123", "newPassword": "newpass123"}
                 """;
 
         mockMvc.perform(post("/api/v1/users/me/password")
@@ -264,7 +260,7 @@ class UserControllerTest {
                 .when(userService).changePassword(any(), any());
 
         String body = """
-                {"currentPassword": "wrong", "newPassword": "newpass"}
+                {"currentPassword": "wrongpass1", "newPassword": "newpass123"}
                 """;
 
         mockMvc.perform(post("/api/v1/users/me/password")

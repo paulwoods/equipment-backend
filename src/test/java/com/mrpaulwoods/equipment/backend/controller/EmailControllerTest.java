@@ -47,7 +47,7 @@ class EmailControllerTest {
 
         mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error").value("SMTP connection failed"));
+                .andExpect(jsonPath("$.error").value("Failed to send email"));
     }
 
     @Test

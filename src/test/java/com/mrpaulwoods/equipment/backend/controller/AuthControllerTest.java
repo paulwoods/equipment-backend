@@ -111,7 +111,7 @@ class AuthControllerTest {
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
         String body = """
-                {"email": "admin@example.com", "password": "admin"}
+                {"email": "admin@example.com", "password": "password123"}
                 """;
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -136,7 +136,7 @@ class AuthControllerTest {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "admin"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("access_token"))
@@ -177,7 +177,7 @@ class AuthControllerTest {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "admin"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -205,7 +205,7 @@ class AuthControllerTest {
                         .secure(true)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "admin"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -277,7 +277,7 @@ class AuthControllerTest {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
 
         String body = """
-                {"email": "admin@example.com", "password": "wrong"}
+                {"email": "admin@example.com", "password": "wrongpass"}
                 """;
 
         mockMvc.perform(post("/api/v1/auth/login")
@@ -293,7 +293,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "whatever"}
+                                {"email": "admin@example.com", "password": "whatever12"}
                                 """))
                 .andExpect(status().isTooManyRequests());
 
@@ -308,7 +308,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "wrong"}
+                                {"email": "admin@example.com", "password": "wrongpass"}
                                 """))
                 .andExpect(status().isUnauthorized());
 
@@ -331,7 +331,7 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "admin"}
+                                {"email": "admin@example.com", "password": "password123"}
                                 """))
                 .andExpect(status().isOk());
 
