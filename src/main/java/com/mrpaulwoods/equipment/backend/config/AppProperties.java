@@ -20,4 +20,5 @@ public class AppProperties {
     private long loginLockoutDurationMs = 15L * 60L * 1000L;
     private int apiRateLimitMaxRequests = 100;
     private long apiRateLimitWindowMs = 60_000L;
+    private String corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173";
 }

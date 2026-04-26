@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -13,15 +14,20 @@ import java.io.IOException;
 
 @Configuration
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
+
+    private final AppProperties appProperties;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] origins = appProperties.getCorsAllowedOrigins().split(",");
         registry.addMapping("/api/v1/**")
-                .allowedOrigins("http://localhost:5173", "127.0.0.1", "localhost")
-                .allowedMethods("*")
-                .allowedHeaders("*")
-                .allowCredentials(true);
+                .allowedOrigins(origins)
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("Authorization", "Content-Type", "Accept", "X-Requested-With")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 
     @Override
