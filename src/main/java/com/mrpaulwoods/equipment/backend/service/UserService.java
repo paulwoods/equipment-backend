@@ -105,6 +105,19 @@ public class UserService {
     }
 
     @Transactional
+    public void changePassword(UUID currentUserId, UserPasswordChangeRequest request) {
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
     public void delete(UUID id, UUID currentUserId, Role callerRole) {
         if (id.equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");

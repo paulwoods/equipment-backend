@@ -351,6 +351,54 @@ class UserServiceTest {
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
+    // --- changePassword ---
+
+    @Test
+    void changePassword_correctCurrentPassword_savesNewHash() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        var request = new UserPasswordChangeRequest("oldpass", "newpass");
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("oldpass", "hashed")).willReturn(true);
+        given(passwordEncoder.encode("newpass")).willReturn("newhashed");
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+
+        userService.changePassword(id, request);
+
+        then(userRepository).should().save(any());
+    }
+
+    @Test
+    void changePassword_wrongCurrentPassword_throwsBadRequest() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        var request = new UserPasswordChangeRequest("wrongpass", "newpass");
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("wrongpass", "hashed")).willReturn(false);
+
+        assertThatThrownBy(() -> userService.changePassword(id, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.BAD_REQUEST.value());
+
+        then(userRepository).should(never()).save(any());
+    }
+
+    @Test
+    void changePassword_userNotFound_throwsNotFound() {
+        UUID id = UUID.randomUUID();
+        var request = new UserPasswordChangeRequest("pass", "newpass");
+
+        given(userRepository.findById(id)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.changePassword(id, request))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
     // --- delete ---
 
     @Test
