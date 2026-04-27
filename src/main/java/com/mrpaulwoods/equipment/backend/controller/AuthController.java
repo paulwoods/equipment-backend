@@ -1,7 +1,9 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
+import com.mrpaulwoods.equipment.backend.dto.ForgotPasswordRequest;
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
+import com.mrpaulwoods.equipment.backend.dto.ResetPasswordRequest;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
@@ -12,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -26,11 +29,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Login, logout, token refresh, and current-user endpoints")
+@Slf4j
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -40,6 +45,9 @@ public class AuthController {
     private final UserService userService;
     private final AppProperties appProperties;
     private final LoginRateLimiterService loginRateLimiter;
+    private final ForgotPasswordRateLimiterService forgotPasswordRateLimiter;
+    private final PasswordResetService passwordResetService;
+    private final EmailService emailService;
 
     @Operation(summary = "Log in with email and password")
     @PostMapping("/login")
@@ -108,6 +116,40 @@ public class AuthController {
         setRefreshTokenCookie(request, response, newRefreshToken.getToken());
 
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Request a password reset email")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        String clientIp = servletRequest.getRemoteAddr();
+
+        if (forgotPasswordRateLimiter.isBlocked(clientIp)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many password reset attempts");
+        }
+
+        forgotPasswordRateLimiter.recordRequest(clientIp);
+
+        Optional<User> userOpt = userService.findByEmail(request.email());
+        if (userOpt.isPresent()) {
+            String token = passwordResetService.createResetToken(userOpt.get());
+            try {
+                emailService.sendPasswordResetEmail(request.email(), token);
+            } catch (Exception e) {
+                log.error("Failed to send password reset email", e);
+            }
+        }
+
+        return ResponseEntity.ok(Map.of("message", "If the email exists in our system, you will receive reset instructions shortly."));
+    }
+
+    @Operation(summary = "Reset password using a token")
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.ok(Map.of("message", "Password updated"));
     }
 
     @Operation(summary = "Return the currently authenticated user")

@@ -128,4 +128,64 @@ class DtoValidationTest {
         PerformRequest req = new PerformRequest(LocalDate.now(), null);
         assertThat(validator.validate(req)).isEmpty();
     }
+
+    // --- ForgotPasswordRequest ---
+
+    @Test
+    void forgotPasswordRequest_valid_noViolations() {
+        ForgotPasswordRequest req = new ForgotPasswordRequest("user@example.com");
+        assertThat(validator.validate(req)).isEmpty();
+    }
+
+    @Test
+    void forgotPasswordRequest_blankEmail_violation() {
+        ForgotPasswordRequest req = new ForgotPasswordRequest("  ");
+        Set<ConstraintViolation<ForgotPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
+    }
+
+    @Test
+    void forgotPasswordRequest_invalidEmail_violation() {
+        ForgotPasswordRequest req = new ForgotPasswordRequest("not-an-email");
+        Set<ConstraintViolation<ForgotPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
+    }
+
+    @Test
+    void forgotPasswordRequest_emailTooLong_violation() {
+        String longEmail = "a".repeat(250) + "@example.com";
+        ForgotPasswordRequest req = new ForgotPasswordRequest(longEmail);
+        Set<ConstraintViolation<ForgotPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("email"));
+    }
+
+    // --- ResetPasswordRequest ---
+
+    @Test
+    void resetPasswordRequest_valid_noViolations() {
+        ResetPasswordRequest req = new ResetPasswordRequest("token-value", "password123");
+        assertThat(validator.validate(req)).isEmpty();
+    }
+
+    @Test
+    void resetPasswordRequest_blankToken_violation() {
+        ResetPasswordRequest req = new ResetPasswordRequest("", "password123");
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("token"));
+    }
+
+    @Test
+    void resetPasswordRequest_shortPassword_violation() {
+        ResetPasswordRequest req = new ResetPasswordRequest("token", "short");
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("newPassword"));
+    }
+
+    @Test
+    void resetPasswordRequest_longPassword_violation() {
+        String longPassword = "a".repeat(129);
+        ResetPasswordRequest req = new ResetPasswordRequest("token", longPassword);
+        Set<ConstraintViolation<ResetPasswordRequest>> violations = validator.validate(req);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("newPassword"));
+    }
 }

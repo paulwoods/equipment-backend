@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -20,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -54,6 +56,15 @@ class AuthControllerTest {
     @Mock
     private LoginRateLimiterService loginRateLimiter;
 
+    @Mock
+    private ForgotPasswordRateLimiterService forgotPasswordRateLimiter;
+
+    @Mock
+    private PasswordResetService passwordResetService;
+
+    @Mock
+    private EmailService emailService;
+
     private AppProperties appProperties;
 
     private AuthController authController;
@@ -70,9 +81,13 @@ class AuthControllerTest {
                 userDetailsService,
                 userService,
                 appProperties,
-                loginRateLimiter
+                loginRateLimiter,
+                forgotPasswordRateLimiter,
+                passwordResetService,
+                emailService
         );
         lenient().when(loginRateLimiter.isBlocked(anyString(), anyString())).thenReturn(false);
+        lenient().when(forgotPasswordRateLimiter.isBlocked(anyString())).thenReturn(false);
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 
@@ -373,5 +388,75 @@ class AuthControllerTest {
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void forgotPassword_withExistingEmail_sendsEmailAndReturns200() throws Exception {
+        User user = appUser("admin@example.com");
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(passwordResetService.createResetToken(user)).thenReturn("reset-token");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If the email exists in our system, you will receive reset instructions shortly."));
+
+        verify(emailService).sendPasswordResetEmail("admin@example.com", "reset-token");
+    }
+
+    @Test
+    void forgotPassword_withNonExistingEmail_returns200WithoutSendingEmail() throws Exception {
+        when(userService.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "unknown@example.com"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If the email exists in our system, you will receive reset instructions shortly."));
+
+        verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
+    }
+
+    @Test
+    void forgotPassword_whenRateLimited_returns429() throws Exception {
+        when(forgotPasswordRateLimiter.isBlocked(anyString())).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com"}
+                                """))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void resetPassword_withValidToken_returns200() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token": "valid-token", "newPassword": "newpassword123"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password updated"));
+
+        verify(passwordResetService).resetPassword("valid-token", "newpassword123");
+    }
+
+    @Test
+    void resetPassword_withInvalidToken_returns400() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"))
+                .when(passwordResetService).resetPassword(eq("invalid-token"), anyString());
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token": "invalid-token", "newPassword": "newpassword123"}
+                                """))
+                .andExpect(status().isBadRequest());
     }
 }

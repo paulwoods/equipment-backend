@@ -23,6 +23,37 @@ public class EmailService {
     private final DashboardService dashboardService;
     private final AppProperties appProperties;
 
+    public void sendPasswordResetEmail(String toEmail, String token) throws Exception {
+        String resetUrl = appProperties.getFrontendUrl() + "/reset-password?token=" + token;
+
+        String html = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>Password Reset Request</h2>
+                    <p>You requested a password reset for your Equipment App account.</p>
+                    <p>Click the button below to reset your password. This link expires in 1 hour.</p>
+                    <p style="text-align: center; margin: 24px 0;">
+                        <a href="%s" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a>
+                    </p>
+                    <p>If the button does not work, copy and paste this link into your browser:</p>
+                    <p><a href="%s">%s</a></p>
+                    <p>If you did not request this, you can safely ignore this email.</p>
+                </div>
+                """.formatted(resetUrl, resetUrl, resetUrl);
+
+        String text = "You requested a password reset for your Equipment App account.\n\n" +
+                      "Copy and paste this link into your browser (expires in 1 hour):\n" + resetUrl + "\n\n" +
+                      "If you did not request this, you can safely ignore this email.";
+
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setFrom(appProperties.getSmtpFrom());
+        helper.setTo(toEmail);
+        helper.setSubject("Password reset request for Equipment App");
+        helper.setText(text, html);
+        mailSender.send(message);
+        log.info("Password reset email sent to {}", toEmail);
+    }
+
     public void sendDashboardEmail() throws Exception {
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
