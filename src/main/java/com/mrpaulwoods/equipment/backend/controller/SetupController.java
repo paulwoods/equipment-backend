@@ -8,7 +8,6 @@ import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import com.mrpaulwoods.equipment.backend.service.UserService;
-import com.mrpaulwoods.equipment.backend.util.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/setup")
@@ -54,7 +54,7 @@ public class SetupController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
         }
 
-        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Role.SYSTEM_ADMIN);
+        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Set.of("SYSTEM_ADMIN"));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateToken(userDetails);

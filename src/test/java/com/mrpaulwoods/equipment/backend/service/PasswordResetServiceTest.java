@@ -41,7 +41,6 @@ class PasswordResetServiceTest {
         user.setName("Alice");
         user.setEmail("alice@example.com");
         user.setPassword("oldhash");
-        user.setRole(com.mrpaulwoods.equipment.backend.util.Role.USER);
         return user;
     }
 

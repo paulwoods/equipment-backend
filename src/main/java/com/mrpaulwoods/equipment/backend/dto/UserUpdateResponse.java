@@ -1,8 +1,7 @@
 package com.mrpaulwoods.equipment.backend.dto;
 
-import com.mrpaulwoods.equipment.backend.util.Role;
-
+import java.util.Set;
 import java.util.UUID;
 
-public record UserUpdateResponse(UUID id, String name, String email, Role role) {
+public record UserUpdateResponse(UUID id, String name, String email, Set<RoleResponse> roles) {
 }

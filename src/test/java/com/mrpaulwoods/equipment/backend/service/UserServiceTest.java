@@ -1,9 +1,12 @@
 package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.entity.RoleEntity;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.entity.UserRole;
+import com.mrpaulwoods.equipment.backend.repository.RoleRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
-import com.mrpaulwoods.equipment.backend.util.Role;
+import com.mrpaulwoods.equipment.backend.repository.UserRoleRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -13,8 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,19 +34,35 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private UserRoleRepository userRoleRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserService userService;
 
-    private User sampleUser(UUID id, String name, String email, Role role) {
+    private User sampleUser(UUID id, String name, String email) {
         User user = new User();
         user.setId(id);
         user.setName(name);
         user.setEmail(email);
         user.setPassword("hashed");
-        user.setRole(role);
         return user;
+    }
+
+    private RoleEntity roleEntity(String name) {
+        RoleEntity role = new RoleEntity();
+        role.setId(UUID.randomUUID());
+        role.setName(name);
+        return role;
+    }
+
+    private void mockRole(String name) {
+        given(roleRepository.findByName(name)).willReturn(Optional.of(roleEntity(name)));
     }
 
     // --- create ---
@@ -51,7 +70,7 @@ class UserServiceTest {
     @Test
     void create_systemAdminCreatingAnyRole_succeeds() {
         UUID id = UUID.randomUUID();
-        var request = new UserRequest("Alice", "alice@example.com", "secret", Role.ADMIN);
+        var request = new UserRequest("Alice", "alice@example.com", "secret", Set.of("ADMIN"));
 
         given(userRepository.findByEmail("alice@example.com")).willReturn(Optional.empty());
         given(passwordEncoder.encode("secret")).willReturn("hashed");
@@ -60,16 +79,17 @@ class UserServiceTest {
             u.setId(id);
             return u;
         });
+        mockRole("ADMIN");
 
-        UserCreateResponse response = userService.create(request, Role.SYSTEM_ADMIN);
+        UserCreateResponse response = userService.create(request, Set.of("SYSTEM_ADMIN"));
 
-        assertThat(response.role()).isEqualTo(Role.ADMIN);
+        assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
 
     @Test
     void create_adminCreatingUserRole_succeeds() {
         UUID id = UUID.randomUUID();
-        var request = new UserRequest("Alice", "alice@example.com", "secret", Role.USER);
+        var request = new UserRequest("Alice", "alice@example.com", "secret", Set.of("USER"));
 
         given(userRepository.findByEmail("alice@example.com")).willReturn(Optional.empty());
         given(passwordEncoder.encode("secret")).willReturn("hashed");
@@ -78,17 +98,18 @@ class UserServiceTest {
             u.setId(id);
             return u;
         });
+        mockRole("USER");
 
-        UserCreateResponse response = userService.create(request, Role.ADMIN);
+        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
 
-        assertThat(response.role()).isEqualTo(Role.USER);
+        assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("USER");
         assertThat(response.name()).isEqualTo("Alice");
     }
 
     @Test
     void create_adminCreatingEditRole_succeeds() {
         UUID id = UUID.randomUUID();
-        var request = new UserRequest("Bob", "bob@example.com", "secret", Role.EDIT);
+        var request = new UserRequest("Bob", "bob@example.com", "secret", Set.of("EDIT"));
 
         given(userRepository.findByEmail("bob@example.com")).willReturn(Optional.empty());
         given(passwordEncoder.encode("secret")).willReturn("hashed");
@@ -97,29 +118,38 @@ class UserServiceTest {
             u.setId(id);
             return u;
         });
+        mockRole("EDIT");
 
-        UserCreateResponse response = userService.create(request, Role.ADMIN);
+        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
 
-        assertThat(response.role()).isEqualTo(Role.EDIT);
+        assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
     }
 
     @Test
-    void create_adminCreatingAdminRole_throwsForbidden() {
-        var request = new UserRequest("Admin2", "admin2@example.com", "secret", Role.ADMIN);
+    void create_adminCreatingAdminRole_succeeds() {
+        UUID id = UUID.randomUUID();
+        var request = new UserRequest("Admin2", "admin2@example.com", "secret", Set.of("ADMIN"));
 
-        assertThatThrownBy(() -> userService.create(request, Role.ADMIN))
-                .isInstanceOf(ResponseStatusException.class)
-                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
-                .isEqualTo(HttpStatus.FORBIDDEN.value());
+        given(userRepository.findByEmail("admin2@example.com")).willReturn(Optional.empty());
+        given(passwordEncoder.encode("secret")).willReturn("hashed");
+        given(userRepository.save(any())).willAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(id);
+            return u;
+        });
+        mockRole("ADMIN");
 
-        then(userRepository).should(never()).save(any());
+        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
+
+        assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
 
     @Test
     void create_adminCreatingSystemAdminRole_throwsForbidden() {
-        var request = new UserRequest("SA", "sa@example.com", "secret", Role.SYSTEM_ADMIN);
+        var request = new UserRequest("SA", "sa@example.com", "secret", Set.of("SYSTEM_ADMIN"));
+        mockRole("SYSTEM_ADMIN");
 
-        assertThatThrownBy(() -> userService.create(request, Role.ADMIN))
+        assertThatThrownBy(() -> userService.create(request, Set.of("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -129,12 +159,13 @@ class UserServiceTest {
 
     @Test
     void create_withDuplicateEmail_throwsConflict() {
-        var request = new UserRequest("Existing", "existing@example.com", "secret", Role.USER);
+        var request = new UserRequest("Existing", "existing@example.com", "secret", Set.of("USER"));
+        mockRole("USER");
 
         given(userRepository.findByEmail("existing@example.com"))
-                .willReturn(Optional.of(sampleUser(UUID.randomUUID(), "Existing", "existing@example.com", Role.USER)));
+                .willReturn(Optional.of(sampleUser(UUID.randomUUID(), "Existing", "existing@example.com")));
 
-        assertThatThrownBy(() -> userService.create(request, Role.ADMIN))
+        assertThatThrownBy(() -> userService.create(request, Set.of("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.CONFLICT.value());
@@ -149,10 +180,9 @@ class UserServiceTest {
         UUID id1 = UUID.randomUUID();
         UUID id2 = UUID.randomUUID();
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
-        var page = new org.springframework.data.domain.PageImpl<>(List.of(
-                sampleUser(id1, "Alice", "a@example.com", Role.ADMIN),
-                sampleUser(id2, "Bob", "b@example.com", Role.USER)
-        ));
+        User user1 = sampleUser(id1, "Alice", "a@example.com");
+        User user2 = sampleUser(id2, "Bob", "b@example.com");
+        var page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(user1, user2));
         given(userRepository.findAll(pageable)).willReturn(page);
 
         var result = userService.findAll(pageable);
@@ -160,7 +190,6 @@ class UserServiceTest {
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).email()).isEqualTo("a@example.com");
         assertThat(result.getContent().get(0).name()).isEqualTo("Alice");
-        assertThat(result.getContent().get(1).role()).isEqualTo(Role.USER);
     }
 
     // --- findById ---
@@ -168,7 +197,7 @@ class UserServiceTest {
     @Test
     void findById_existingId_returnsDetail() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
         given(userRepository.findById(id)).willReturn(Optional.of(user));
 
         UserDetailResponse result = userService.findById(id);
@@ -195,59 +224,62 @@ class UserServiceTest {
     void update_systemAdminUpdatingAdminUser_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User user = sampleUser(id, "Old", "old@example.com", Role.ADMIN);
-        var request = new UserUpdateRequest("New", "new@example.com", Role.ADMIN);
+        User user = sampleUser(id, "Old", "old@example.com");
+        var request = new UserUpdateRequest("New", "new@example.com", Set.of("ADMIN"));
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         given(userRepository.findByEmail("new@example.com")).willReturn(Optional.empty());
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        mockRole("ADMIN");
 
-        UserUpdateResponse result = userService.update(id, request, currentUserId, Role.SYSTEM_ADMIN);
+        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("SYSTEM_ADMIN"));
 
         assertThat(result.name()).isEqualTo("New");
-        assertThat(result.role()).isEqualTo(Role.ADMIN);
+        assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
 
     @Test
     void update_adminUpdatingUserRole_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User user = sampleUser(id, "Old Name", "old@example.com", Role.USER);
-        var request = new UserUpdateRequest("New Name", "new@example.com", Role.EDIT);
+        User user = sampleUser(id, "Old Name", "old@example.com");
+        var request = new UserUpdateRequest("New Name", "new@example.com", Set.of("EDIT"));
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         given(userRepository.findByEmail("new@example.com")).willReturn(Optional.empty());
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        mockRole("EDIT");
 
-        UserUpdateResponse result = userService.update(id, request, currentUserId, Role.ADMIN);
+        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
 
         assertThat(result.name()).isEqualTo("New Name");
-        assertThat(result.role()).isEqualTo(Role.EDIT);
+        assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
     }
 
     @Test
-    void update_adminUpdatingAdminUser_throwsForbidden() {
+    void update_adminUpdatingAdminUser_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User user = sampleUser(id, "Admin2", "admin2@example.com", Role.ADMIN);
-        var request = new UserUpdateRequest("Admin2", "admin2@example.com", Role.ADMIN);
+        User user = sampleUser(id, "Admin2", "admin2@example.com");
+        user.getUserRoles().add(userRole(user, roleEntity("ADMIN")));
+        var request = new UserUpdateRequest("Admin2", "admin2@example.com", Set.of("ADMIN"));
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        mockRole("ADMIN");
 
-        assertThatThrownBy(() -> userService.update(id, request, currentUserId, Role.ADMIN))
-                .isInstanceOf(ResponseStatusException.class)
-                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
-                .isEqualTo(HttpStatus.FORBIDDEN.value());
+        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
 
-        then(userRepository).should(never()).save(any());
+        assertThat(result.name()).isEqualTo("Admin2");
+        assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
 
     @Test
     void update_selfModification_throwsForbidden() {
         UUID id = UUID.randomUUID();
-        var request = new UserUpdateRequest("Me", "me@example.com", Role.USER);
+        var request = new UserUpdateRequest("Me", "me@example.com", Set.of("USER"));
 
-        assertThatThrownBy(() -> userService.update(id, request, id, Role.SYSTEM_ADMIN))
+        assertThatThrownBy(() -> userService.update(id, request, id, Set.of("SYSTEM_ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -260,14 +292,15 @@ class UserServiceTest {
         UUID id = UUID.randomUUID();
         UUID otherId = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
-        User other = sampleUser(otherId, "Bob", "taken@example.com", Role.USER);
-        var request = new UserUpdateRequest("Alice", "taken@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
+        User other = sampleUser(otherId, "Bob", "taken@example.com");
+        var request = new UserUpdateRequest("Alice", "taken@example.com", Set.of("USER"));
+        mockRole("USER");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         given(userRepository.findByEmail("taken@example.com")).willReturn(Optional.of(other));
 
-        assertThatThrownBy(() -> userService.update(id, request, currentUserId, Role.ADMIN))
+        assertThatThrownBy(() -> userService.update(id, request, currentUserId, Set.of("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.CONFLICT.value());
@@ -276,10 +309,10 @@ class UserServiceTest {
     @Test
     void update_nonExistingUser_throwsNotFound() {
         UUID id = UUID.randomUUID();
-        var request = new UserUpdateRequest("Alice", "alice@example.com", Role.USER);
+        var request = new UserUpdateRequest("Alice", "alice@example.com", Set.of("USER"));
         given(userRepository.findById(id)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.update(id, request, UUID.randomUUID(), Role.ADMIN))
+        assertThatThrownBy(() -> userService.update(id, request, UUID.randomUUID(), Set.of("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
@@ -290,7 +323,8 @@ class UserServiceTest {
     @Test
     void updateSelf_happyPath_updatesNameAndEmail() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Old Name", "old@example.com", Role.USER);
+        User user = sampleUser(id, "Old Name", "old@example.com");
+        user.getUserRoles().add(userRole(user, roleEntity("USER")));
         var request = new UserSelfUpdateRequest("New Name", "new@example.com");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
@@ -301,13 +335,13 @@ class UserServiceTest {
 
         assertThat(result.name()).isEqualTo("New Name");
         assertThat(result.email()).isEqualTo("new@example.com");
-        assertThat(result.role()).isEqualTo(Role.USER);
+        assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("USER");
     }
 
     @Test
     void updateSelf_emailUnchanged_doesNotCheckUniqueness() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
         var request = new UserSelfUpdateRequest("Alice Updated", "alice@example.com");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
@@ -323,8 +357,8 @@ class UserServiceTest {
     void updateSelf_emailTakenByOtherUser_throwsConflict() {
         UUID id = UUID.randomUUID();
         UUID otherId = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
-        User other = sampleUser(otherId, "Bob", "taken@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
+        User other = sampleUser(otherId, "Bob", "taken@example.com");
         var request = new UserSelfUpdateRequest("Alice", "taken@example.com");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
@@ -356,7 +390,7 @@ class UserServiceTest {
     @Test
     void changePassword_correctCurrentPassword_savesNewHash() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
         var request = new UserPasswordChangeRequest("oldpass", "newpass");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
@@ -372,7 +406,7 @@ class UserServiceTest {
     @Test
     void changePassword_wrongCurrentPassword_throwsBadRequest() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "alice@example.com");
         var request = new UserPasswordChangeRequest("wrongpass", "newpass");
 
         given(userRepository.findById(id)).willReturn(Optional.of(user));
@@ -405,37 +439,37 @@ class UserServiceTest {
     void delete_adminDeletingUserAccount_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User target = sampleUser(id, "Alice", "alice@example.com", Role.USER);
+        User target = sampleUser(id, "Alice", "alice@example.com");
+        target.getUserRoles().add(userRole(target, roleEntity("USER")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        userService.delete(id, currentUserId, Role.ADMIN);
+        userService.delete(id, currentUserId, Set.of("ADMIN"));
 
         then(userRepository).should().deleteById(id);
     }
 
     @Test
-    void delete_adminDeletingAdminAccount_throwsForbidden() {
+    void delete_adminDeletingAdminAccount_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User target = sampleUser(id, "Admin2", "admin2@example.com", Role.ADMIN);
+        User target = sampleUser(id, "Admin2", "admin2@example.com");
+        target.getUserRoles().add(userRole(target, roleEntity("ADMIN")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        assertThatThrownBy(() -> userService.delete(id, currentUserId, Role.ADMIN))
-                .isInstanceOf(ResponseStatusException.class)
-                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
-                .isEqualTo(HttpStatus.FORBIDDEN.value());
+        userService.delete(id, currentUserId, Set.of("ADMIN"));
 
-        then(userRepository).should(never()).deleteById(any());
+        then(userRepository).should().deleteById(id);
     }
 
     @Test
     void delete_systemAdminDeletingAdminAccount_succeeds() {
         UUID id = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();
-        User target = sampleUser(id, "Admin2", "admin2@example.com", Role.ADMIN);
+        User target = sampleUser(id, "Admin2", "admin2@example.com");
+        target.getUserRoles().add(userRole(target, roleEntity("ADMIN")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        userService.delete(id, currentUserId, Role.SYSTEM_ADMIN);
+        userService.delete(id, currentUserId, Set.of("SYSTEM_ADMIN"));
 
         then(userRepository).should().deleteById(id);
     }
@@ -444,7 +478,7 @@ class UserServiceTest {
     void delete_selfDelete_throwsForbidden() {
         UUID id = UUID.randomUUID();
 
-        assertThatThrownBy(() -> userService.delete(id, id, Role.SYSTEM_ADMIN))
+        assertThatThrownBy(() -> userService.delete(id, id, Set.of("SYSTEM_ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -458,7 +492,7 @@ class UserServiceTest {
         UUID currentUserId = UUID.randomUUID();
         given(userRepository.findById(id)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.delete(id, currentUserId, Role.ADMIN))
+        assertThatThrownBy(() -> userService.delete(id, currentUserId, Set.of("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
@@ -485,9 +519,17 @@ class UserServiceTest {
     @Test
     void findByEmail_delegatesToRepository() {
         UUID id = UUID.randomUUID();
-        User user = sampleUser(id, "Alice", "test@example.com", Role.USER);
+        User user = sampleUser(id, "Alice", "test@example.com");
         given(userRepository.findByEmail("test@example.com")).willReturn(Optional.of(user));
 
         assertThat(userService.findByEmail("test@example.com")).contains(user);
+    }
+
+    private UserRole userRole(User user, RoleEntity role) {
+        UserRole ur = new UserRole();
+        ur.setId(UUID.randomUUID());
+        ur.setUser(user);
+        ur.setRole(role);
+        return ur;
     }
 }

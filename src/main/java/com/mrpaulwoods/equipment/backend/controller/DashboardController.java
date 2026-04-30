@@ -21,7 +21,7 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @Operation(summary = "List equipment with upcoming or overdue maintenance")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
     public List<DashboardItem> getDashboard() {
         return dashboardService.getDashboardItems();

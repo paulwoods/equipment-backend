@@ -3,7 +3,6 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
-import com.mrpaulwoods.equipment.backend.util.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,6 +18,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -33,7 +34,7 @@ public class UserController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<UserCreateResponse> create(@Valid @RequestBody UserRequest request, Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, callerRole(authentication)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, callerRoles(authentication)));
     }
 
     @Operation(summary = "List all users (paginated)")
@@ -57,7 +58,7 @@ public class UserController {
             @Valid @RequestBody UserUpdateRequest request,
             Authentication authentication) {
         UUID currentUserId = currentUserId(authentication);
-        return ResponseEntity.ok(userService.update(id, request, currentUserId, callerRole(authentication)));
+        return ResponseEntity.ok(userService.update(id, request, currentUserId, callerRoles(authentication)));
     }
 
     @Operation(summary = "Delete a user account")
@@ -65,7 +66,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
         UUID currentUserId = currentUserId(authentication);
-        userService.delete(id, currentUserId, callerRole(authentication));
+        userService.delete(id, currentUserId, callerRoles(authentication));
         return ResponseEntity.noContent().build();
     }
 
@@ -96,9 +97,14 @@ public class UserController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
 
-    private Role callerRole(Authentication authentication) {
-        return userService.findByEmail(authentication.getName())
-                .map(User::getRole)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+    private Set<String> callerRoles(Authentication authentication) {
+        Set<String> roles = new HashSet<>();
+        authentication.getAuthorities().forEach(a -> {
+            String authority = a.getAuthority();
+            if (authority.startsWith("ROLE_")) {
+                roles.add(authority.substring(5));
+            }
+        });
+        return roles;
     }
 }

@@ -23,10 +23,14 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         com.mrpaulwoods.equipment.backend.entity.User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
+        List<SimpleGrantedAuthority> authorities = user.getUserRoles().stream()
+                .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getName()))
+                .toList();
+
         return new User(
                 user.getEmail(),
                 user.getPassword(),
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                authorities
         );
     }
 }

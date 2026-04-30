@@ -3,7 +3,6 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
-import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -68,7 +68,6 @@ class UserControllerTest {
         adminUser = new User();
         adminUser.setId(USER_ID);
         adminUser.setEmail(ADMIN_EMAIL);
-        adminUser.setRole(Role.ADMIN);
     }
 
     @AfterEach
@@ -81,17 +80,17 @@ class UserControllerTest {
                 ADMIN_EMAIL, null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
         SecurityContextHolder.getContext().setAuthentication(auth);
-        given(userService.findByEmail(ADMIN_EMAIL)).willReturn(Optional.of(adminUser));
+        org.mockito.Mockito.lenient().when(userService.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(adminUser));
     }
 
     @Test
     void create_withValidBody_returns201() throws Exception {
         authenticateAsAdmin();
-        var response = new UserCreateResponse(USER_ID, "Alice", "new@example.com", Role.USER);
+        var response = new UserCreateResponse(USER_ID, "Alice", "new@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.create(any(), any())).willReturn(response);
 
         String body = """
-                {"name": "Alice", "email": "new@example.com", "password": "password123", "role": "USER"}
+                {"name": "Alice", "email": "new@example.com", "password": "password123", "roles": ["USER"]}
                 """;
 
         mockMvc.perform(post("/api/v1/users")
@@ -100,7 +99,7 @@ class UserControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Alice"))
                 .andExpect(jsonPath("$.email").value("new@example.com"))
-                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(jsonPath("$.roles").isArray())
                 .andExpect(jsonPath("$.id").value(USER_ID.toString()));
     }
 
@@ -120,7 +119,7 @@ class UserControllerTest {
     void findAll_returnsPagedUserList() throws Exception {
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
         var page = new org.springframework.data.domain.PageImpl<>(List.of(
-                new UserListResponse(USER_ID, "Admin", ADMIN_EMAIL, Role.ADMIN)
+                new UserListResponse(USER_ID, "Admin", ADMIN_EMAIL, Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")))
         ), pageable, 1);
         given(userService.findAll(any())).willReturn(page);
 
@@ -128,12 +127,12 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].email").value(ADMIN_EMAIL))
                 .andExpect(jsonPath("$.content[0].name").value("Admin"))
-                .andExpect(jsonPath("$.content[0].role").value("ADMIN"));
+                .andExpect(jsonPath("$.content[0].roles").isArray());
     }
 
     @Test
     void findById_returnsUserDetail() throws Exception {
-        var detail = new UserDetailResponse(USER_ID, "Alice", "alice@example.com", Role.USER);
+        var detail = new UserDetailResponse(USER_ID, "Alice", "alice@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.findById(USER_ID)).willReturn(detail);
 
         mockMvc.perform(get("/api/v1/users/{id}", USER_ID))
@@ -146,11 +145,11 @@ class UserControllerTest {
     void update_withValidBody_returns200() throws Exception {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
-        var response = new UserUpdateResponse(targetId, "Updated", "updated@example.com", Role.USER);
+        var response = new UserUpdateResponse(targetId, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.update(any(), any(), any(), any())).willReturn(response);
 
         String body = """
-                {"name": "Updated", "email": "updated@example.com", "role": "USER"}
+                {"name": "Updated", "email": "updated@example.com", "roles": ["USER"]}
                 """;
 
         mockMvc.perform(put("/api/v1/users/{id}", targetId)
@@ -170,7 +169,7 @@ class UserControllerTest {
         mockMvc.perform(delete("/api/v1/users/{id}", targetId))
                 .andExpect(status().isNoContent());
 
-        then(userService).should().delete(targetId, USER_ID, Role.ADMIN);
+        then(userService).should().delete(targetId, USER_ID, Set.of("ADMIN"));
     }
 
     @Test
@@ -189,7 +188,7 @@ class UserControllerTest {
     @Test
     void updateMe_withValidBody_returns200() throws Exception {
         authenticateAsAdmin();
-        var response = new UserSelfUpdateResponse(USER_ID, "Updated", "updated@example.com", Role.ADMIN);
+        var response = new UserSelfUpdateResponse(USER_ID, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")));
         given(userService.updateSelf(any(), any())).willReturn(response);
 
         String body = """

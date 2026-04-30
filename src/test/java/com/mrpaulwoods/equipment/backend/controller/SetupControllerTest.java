@@ -7,7 +7,6 @@ import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import com.mrpaulwoods.equipment.backend.service.UserService;
-import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +22,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,8 +85,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
@@ -118,8 +117,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
@@ -166,8 +164,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        user.setRole(Role.SYSTEM_ADMIN);
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Role.SYSTEM_ADMIN)).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));

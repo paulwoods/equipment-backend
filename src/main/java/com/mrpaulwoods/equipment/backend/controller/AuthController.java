@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -154,16 +155,24 @@ public class AuthController {
 
     @Operation(summary = "Return the currently authenticated user")
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> me(Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> me(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.ok().build();
         }
         String email = authentication.getName();
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        String id = userService.findByEmail(email)
-                .map(u -> u.getId().toString())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-        return ResponseEntity.ok(Map.of("email", email, "role", role, "id", id));
+        User user = userService.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<Map<String, String>> roles = user.getUserRoles().stream()
+                .map(ur -> Map.of("id", ur.getRole().getId().toString(), "name", ur.getRole().getName()))
+                .toList();
+
+        return ResponseEntity.ok(Map.of(
+                "name", user.getName(),
+                "email", email,
+                "roles", roles,
+                "id", user.getId().toString()
+        ));
     }
 
     private void setAccessTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {

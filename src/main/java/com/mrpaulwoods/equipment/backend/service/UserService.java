@@ -1,9 +1,12 @@
 package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.entity.RoleEntity;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.entity.UserRole;
+import com.mrpaulwoods.equipment.backend.repository.RoleRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
-import com.mrpaulwoods.equipment.backend.util.Role;
+import com.mrpaulwoods.equipment.backend.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -23,43 +27,48 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private static final Set<String> ADMIN_MANAGEABLE_ROLES = Set.of("USER", "EDIT", "ADMIN");
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-
-    private static final Set<Role> ADMIN_MANAGEABLE_ROLES = Set.of(Role.USER, Role.EDIT);
+    private final UserRoleRepository userRoleRepository;
 
     @Transactional
-    public User createInternal(String name, String email, String password, Role role) {
+    public User createInternal(String name, String email, String password, Set<String> roleNames) {
         User user = new User();
         user.setName(name);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRole(role);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        assignRoles(saved, roleNames);
+        return saved;
     }
 
     public Page<UserListResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
-                .map(u -> new UserListResponse(u.getId(), u.getName(), u.getEmail(), u.getRole()));
+                .map(u -> new UserListResponse(u.getId(), u.getName(), u.getEmail(), toRoleResponses(u)));
     }
 
     public UserDetailResponse findById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserDetailResponse(user.getId(), user.getName(), user.getEmail(), user.getRole());
+        return new UserDetailResponse(user.getId(), user.getName(), user.getEmail(), toRoleResponses(user));
     }
 
     @Transactional
-    public UserCreateResponse create(UserRequest request, Role callerRole) {
-        assertCallerCanManageRole(callerRole, request.role());
+    public UserCreateResponse create(UserRequest request, Set<String> callerRoleNames) {
+        validateRoleNames(request.roles());
+        for (String roleName : request.roles()) {
+            assertCallerCanManageRole(callerRoleNames, roleName);
+        }
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
         }
-        User saved = createInternal(request.name(), request.email(), request.password(), request.role());
-        return new UserCreateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
+        User saved = createInternal(request.name(), request.email(), request.password(), request.roles());
+        return new UserCreateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional
-    public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Role callerRole) {
+    public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Set<String> callerRoleNames) {
         if (id.equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot modify your own account");
         }
@@ -67,8 +76,13 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        assertCallerCanManageRole(callerRole, user.getRole());
-        assertCallerCanManageRole(callerRole, request.role());
+        validateRoleNames(request.roles());
+        for (String existingRole : getRoleNames(user)) {
+            assertCallerCanManageRole(callerRoleNames, existingRole);
+        }
+        for (String requestedRole : request.roles()) {
+            assertCallerCanManageRole(callerRoleNames, requestedRole);
+        }
 
         if (!user.getEmail().equals(request.email())) {
             userRepository.findByEmail(request.email()).ifPresent(existing -> {
@@ -80,9 +94,9 @@ public class UserService {
 
         user.setName(request.name());
         user.setEmail(request.email());
-        user.setRole(request.role());
+        updateRoles(user, request.roles());
         User saved = userRepository.save(user);
-        return new UserUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
+        return new UserUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional
@@ -101,7 +115,7 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         User saved = userRepository.save(user);
-        return new UserSelfUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), saved.getRole());
+        return new UserSelfUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional
@@ -118,24 +132,17 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(UUID id, UUID currentUserId, Role callerRole) {
+    public void delete(UUID id, UUID currentUserId, Set<String> callerRoleNames) {
         if (id.equals(currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");
         }
         User target = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        assertCallerCanManageRole(callerRole, target.getRole());
+        for (String roleName : getRoleNames(target)) {
+            assertCallerCanManageRole(callerRoleNames, roleName);
+        }
+        userRoleRepository.deleteByUserId(id);
         userRepository.deleteById(id);
-    }
-
-    private void assertCallerCanManageRole(Role callerRole, Role targetRole) {
-        if (callerRole == Role.SYSTEM_ADMIN) {
-            return;
-        }
-        if (callerRole == Role.ADMIN && ADMIN_MANAGEABLE_ROLES.contains(targetRole)) {
-            return;
-        }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage this role");
     }
 
     public boolean isSetupRequired() {
@@ -144,5 +151,59 @@ public class UserService {
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+
+    private void assignRoles(User user, Set<String> roleNames) {
+        for (String roleName : roleNames) {
+            RoleEntity role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role: " + roleName));
+            UserRole userRole = new UserRole();
+            userRole.setUser(user);
+            userRole.setRole(role);
+            user.getUserRoles().add(userRole);
+        }
+    }
+
+    private void updateRoles(User user, Set<String> roleNames) {
+        user.getUserRoles().clear();
+        userRoleRepository.deleteByUserId(user.getId());
+        assignRoles(user, roleNames);
+    }
+
+    private void validateRoleNames(Set<String> roleNames) {
+        if (roleNames == null || roleNames.isEmpty()) {
+            return;
+        }
+        for (String roleName : roleNames) {
+            if (!roleRepository.findByName(roleName).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role: " + roleName);
+            }
+        }
+    }
+
+    private Set<String> getRoleNames(User user) {
+        Set<String> names = new HashSet<>();
+        for (UserRole ur : user.getUserRoles()) {
+            names.add(ur.getRole().getName());
+        }
+        return names;
+    }
+
+    private Set<RoleResponse> toRoleResponses(User user) {
+        Set<RoleResponse> responses = new HashSet<>();
+        for (UserRole ur : user.getUserRoles()) {
+            responses.add(new RoleResponse(ur.getRole().getId(), ur.getRole().getName()));
+        }
+        return responses;
+    }
+
+    private void assertCallerCanManageRole(Set<String> callerRoleNames, String targetRoleName) {
+        if (callerRoleNames.contains("SYSTEM_ADMIN")) {
+            return;
+        }
+        if (callerRoleNames.contains("ADMIN") && ADMIN_MANAGEABLE_ROLES.contains(targetRoleName)) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage role: " + targetRoleName);
     }
 }

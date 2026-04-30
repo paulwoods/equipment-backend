@@ -4,7 +4,6 @@ import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
-import com.mrpaulwoods.equipment.backend.util.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -100,7 +99,6 @@ class AuthControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(email);
-        user.setRole(Role.ADMIN);
         return user;
     }
 
@@ -355,23 +353,20 @@ class AuthControllerTest {
     }
 
     @Test
-    void me_whenAuthenticated_returnsEmailAndRole() throws Exception {
+    void me_whenAuthenticated_returnsEmailAndRoles() throws Exception {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("admin@example.com");
-        when(auth.getAuthorities()).thenAnswer(_ ->
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
         User user = new User();
         user.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setEmail("admin@example.com");
-        user.setRole(Role.ADMIN);
         when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("admin@example.com"))
-                .andExpect(jsonPath("$.role").value("ROLE_ADMIN"))
+                .andExpect(jsonPath("$.roles").isArray())
                 .andExpect(jsonPath("$.id").value("00000000-0000-0000-0000-000000000001"));
     }
 
@@ -388,6 +383,17 @@ class AuthControllerTest {
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void me_whenUserNotFound_returns404() throws Exception {
+        Authentication auth = mock(Authentication.class);
+        when(auth.isAuthenticated()).thenReturn(true);
+        when(auth.getName()).thenReturn("admin@example.com");
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/auth/me").principal(auth))
+                .andExpect(status().isNotFound());
     }
 
     @Test
