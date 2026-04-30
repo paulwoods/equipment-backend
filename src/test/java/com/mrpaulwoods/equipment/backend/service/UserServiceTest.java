@@ -275,9 +275,26 @@ class UserServiceTest {
     }
 
     @Test
-    void update_selfModification_throwsForbidden() {
+    void update_selfModification_byNonSystemAdmin_throwsForbidden() {
         UUID id = UUID.randomUUID();
         var request = new UserUpdateRequest("Me", "me@example.com", Set.of("USER"));
+
+        assertThatThrownBy(() -> userService.update(id, request, id, Set.of("ADMIN")))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.FORBIDDEN.value());
+
+        then(userRepository).should(never()).save(any());
+    }
+
+    @Test
+    void update_selfModification_bySystemAdmin_removingOwnSystemAdminRole_throwsForbidden() {
+        UUID id = UUID.randomUUID();
+        User user = sampleUser(id, "Me", "me@example.com");
+        var request = new UserUpdateRequest("Me", "me@example.com", Set.of("USER"));
+
+        given(userRepository.findById(id)).willReturn(Optional.of(user));
+        mockRole("USER");
 
         assertThatThrownBy(() -> userService.update(id, request, id, Set.of("SYSTEM_ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)

@@ -69,7 +69,7 @@ public class UserService {
 
     @Transactional
     public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Set<String> callerRoleNames) {
-        if (id.equals(currentUserId)) {
+        if (id.equals(currentUserId) && !callerRoleNames.contains("SYSTEM_ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot modify your own account");
         }
 
@@ -82,6 +82,10 @@ public class UserService {
         }
         for (String requestedRole : request.roles()) {
             assertCallerCanManageRole(callerRoleNames, requestedRole);
+        }
+
+        if (id.equals(currentUserId) && !request.roles().contains("SYSTEM_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot remove your own SYSTEM_ADMIN role");
         }
 
         if (!user.getEmail().equals(request.email())) {
