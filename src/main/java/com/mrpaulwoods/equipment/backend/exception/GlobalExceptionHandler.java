@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -23,9 +22,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,
                                                         jakarta.servlet.http.HttpServletRequest request) {
         log.warn("Resource not found: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Resource Not Found");
-        problem.setInstance(URI.create(request.getRequestURI()));
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.NOT_FOUND, ex.getMessage(), "Resource Not Found", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
 
@@ -33,9 +30,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleImportEquipment(ImportEquipmentException ex,
                                                                jakarta.servlet.http.HttpServletRequest request) {
         log.warn("Import error: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Import Error");
-        problem.setInstance(URI.create(request.getRequestURI()));
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.BAD_REQUEST, ex.getMessage(), "Import Error", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
@@ -48,9 +43,7 @@ public class GlobalExceptionHandler {
                         fe -> Objects.requireNonNullElse(fe.getDefaultMessage(), "Invalid value"),
                         (a, b) -> a
                 ));
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
-        problem.setTitle("Validation Error");
-        problem.setInstance(URI.create(request.getRequestURI()));
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.BAD_REQUEST, "Validation failed", "Validation Error", request.getRequestURI());
         problem.setProperty("errors", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
@@ -60,9 +53,7 @@ public class GlobalExceptionHandler {
                                                               jakarta.servlet.http.HttpServletRequest request) {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase());
-        problem.setTitle(status.getReasonPhrase());
-        problem.setInstance(URI.create(request.getRequestURI()));
+        ProblemDetail problem = ProblemDetails.of(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(), status.getReasonPhrase(), request.getRequestURI());
         return ResponseEntity.status(status).body(problem);
     }
 
@@ -70,10 +61,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleGeneric(Exception ex,
                                                        jakarta.servlet.http.HttpServletRequest request) {
         log.error("Unexpected error", ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
-        problem.setTitle("Internal Server Error");
-        problem.setInstance(URI.create(request.getRequestURI()));
+        ProblemDetail problem = ProblemDetails.of(
+                HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", "Internal Server Error", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
     }
 }

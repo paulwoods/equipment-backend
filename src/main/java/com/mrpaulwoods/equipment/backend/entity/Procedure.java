@@ -9,7 +9,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "procedure")
@@ -17,10 +16,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Procedure {
-
-    @Id
-    private UUID id;
+public class Procedure extends UuidEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipment_id", nullable = false)
@@ -42,11 +38,4 @@ public class Procedure {
 
     @OneToMany(mappedBy = "procedure", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Perform> history = new ArrayList<>();
-
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 }

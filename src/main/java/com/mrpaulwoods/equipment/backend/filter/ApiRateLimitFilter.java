@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.filter;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
+import com.mrpaulwoods.equipment.backend.exception.ProblemDetails;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,10 +68,8 @@ public class ApiRateLimitFilter implements Filter {
             log.warn("Rate limit exceeded for IP: {}", clientIp);
             httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                    HttpStatus.TOO_MANY_REQUESTS, "Too many requests");
-            problem.setTitle("Rate Limit Exceeded");
-            problem.setInstance(URI.create(path));
+            ProblemDetail problem = ProblemDetails.of(
+                    HttpStatus.TOO_MANY_REQUESTS, "Too many requests", "Rate Limit Exceeded", path);
             objectMapper.writeValue(httpResponse.getWriter(), problem);
             return;
         }

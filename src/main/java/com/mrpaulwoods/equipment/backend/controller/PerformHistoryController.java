@@ -1,8 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.PerformCreateResponse;
-import com.mrpaulwoods.equipment.backend.dto.PerformListResponse;
 import com.mrpaulwoods.equipment.backend.dto.PerformRequest;
+import com.mrpaulwoods.equipment.backend.dto.PerformResponse;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +26,7 @@ public class PerformHistoryController {
     @Operation(summary = "List all perform records for a procedure")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @GetMapping
-    public ResponseEntity<List<PerformListResponse>> getHistory(@PathVariable UUID equipmentId,
+    public ResponseEntity<List<PerformResponse>> getHistory(@PathVariable UUID equipmentId,
                                                                 @PathVariable UUID procedureId) {
         return ResponseEntity.ok(performHistoryService.getHistory(equipmentId, procedureId));
     }
@@ -35,7 +34,7 @@ public class PerformHistoryController {
     @Operation(summary = "Record a new maintenance performance entry")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     @PostMapping
-    public ResponseEntity<PerformCreateResponse> record(@PathVariable UUID equipmentId,
+    public ResponseEntity<PerformResponse> record(@PathVariable UUID equipmentId,
                                                         @PathVariable UUID procedureId,
                                                         @Valid @RequestBody PerformRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(performHistoryService.record(equipmentId, procedureId, request));

@@ -10,7 +10,6 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "equipment")
@@ -18,10 +17,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Equipment {
-
-    @Id
-    private UUID id;
+public class Equipment extends UuidEntity {
 
     private String manufacturer;
     private String modelNumber;
@@ -39,11 +35,4 @@ public class Equipment {
 
     @OneToMany(mappedBy = "equipment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Procedure> procedures = new ArrayList<>();
-
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 }

@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.filter;
 
+import com.mrpaulwoods.equipment.backend.service.CookieService;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
@@ -23,6 +24,9 @@ class JwtAuthFilterTest {
 
     @Mock
     private UserDetailsServiceImpl userDetailsService;
+
+    @Mock
+    private CookieService cookieService;
 
     @InjectMocks
     private JwtAuthFilter jwtAuthFilter;
@@ -67,8 +71,6 @@ class JwtAuthFilterTest {
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain filterChain = mock(FilterChain.class);
-
-        when(request.getCookies()).thenReturn(null);
 
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 

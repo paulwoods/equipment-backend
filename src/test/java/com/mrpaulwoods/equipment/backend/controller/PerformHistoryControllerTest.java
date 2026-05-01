@@ -1,7 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.PerformCreateResponse;
-import com.mrpaulwoods.equipment.backend.dto.PerformListResponse;
+import com.mrpaulwoods.equipment.backend.dto.PerformResponse;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +49,7 @@ class PerformHistoryControllerTest {
 
     @Test
     void getHistory_returnsPerformList() throws Exception {
-        var response = new PerformListResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
+        var response = new PerformResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
         when(performHistoryService.getHistory(EQ_ID, PROC_ID)).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/v1/equipment/{eq}/procedures/{proc}/history", EQ_ID, PROC_ID))
@@ -61,7 +60,7 @@ class PerformHistoryControllerTest {
 
     @Test
     void record_withValidBody_returns201() throws Exception {
-        var response = new PerformCreateResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
+        var response = new PerformResponse(PERF_ID, LocalDate.of(2024, 6, 1), "Completed without issues");
         when(performHistoryService.record(eq(EQ_ID), eq(PROC_ID), any())).thenReturn(response);
 
         String body = """

@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 @Entity
 @Table(name = "perform")
@@ -16,10 +15,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Perform {
-
-    @Id
-    private UUID id;
+public class Perform extends UuidEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "procedure_id", nullable = false)
@@ -30,11 +26,4 @@ public class Perform {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
-
-    @PrePersist
-    public void generateId() {
-        if (id == null) {
-            id = UUID.randomUUID();
-        }
-    }
 }

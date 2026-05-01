@@ -1,11 +1,14 @@
 package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
 
 @Service
 public class CookieService {
@@ -26,6 +29,16 @@ public class CookieService {
 
     public void clearCookie(HttpServletRequest request, HttpServletResponse response, String name, String path) {
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(name, "", path, 0, request));
+    }
+
+    public String getCookieValue(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        return Arrays.stream(cookies)
+                .filter(c -> name.equals(c.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
 
     private String buildCookie(String name, String value, String path, int maxAge, HttpServletRequest request) {

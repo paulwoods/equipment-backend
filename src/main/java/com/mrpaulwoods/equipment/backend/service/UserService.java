@@ -45,13 +45,13 @@ public class UserService {
 
     public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
-                .map(u -> new UserResponse(u.getId(), u.getName(), u.getEmail(), toRoleResponses(u)));
+                .map(this::toResponse);
     }
 
     public UserResponse findById(UUID id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), toRoleResponses(user));
+                .orElseThrow(this::notFound);
+        return toResponse(user);
     }
 
     @Transactional
@@ -61,10 +61,10 @@ public class UserService {
             assertCallerCanManageRole(callerRoleNames, roleName);
         }
         if (userRepository.findByEmail(request.email()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+            throw emailInUse();
         }
         User saved = createInternal(request.name(), request.email(), request.password(), request.roles());
-        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -74,7 +74,7 @@ public class UserService {
         }
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(this::notFound);
 
         validateRoleNames(request.roles());
         for (String existingRole : getRoleNames(user)) {
@@ -91,7 +91,7 @@ public class UserService {
         if (!user.getEmail().equals(request.email())) {
             userRepository.findByEmail(request.email()).ifPresent(existing -> {
                 if (!existing.getId().equals(id)) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+                    throw emailInUse();
                 }
             });
         }
@@ -100,18 +100,18 @@ public class UserService {
         user.setEmail(request.email());
         updateRoles(user, request.roles());
         User saved = userRepository.save(user);
-        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return toResponse(saved);
     }
 
     @Transactional
     public UserResponse updateSelf(UUID currentUserId, UserSelfUpdateRequest request) {
         User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(this::notFound);
 
         if (!user.getEmail().equals(request.email())) {
             userRepository.findByEmail(request.email()).ifPresent(existing -> {
                 if (!existing.getId().equals(currentUserId)) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+                    throw emailInUse();
                 }
             });
         }
@@ -119,13 +119,13 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         User saved = userRepository.save(user);
-        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return toResponse(saved);
     }
 
     @Transactional
     public void changePassword(UUID currentUserId, UserPasswordChangeRequest request) {
         User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(this::notFound);
 
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
@@ -141,7 +141,7 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");
         }
         User target = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(this::notFound);
         for (String roleName : getRoleNames(target)) {
             assertCallerCanManageRole(callerRoleNames, roleName);
         }
@@ -199,6 +199,18 @@ public class UserService {
             responses.add(new RoleResponse(ur.getRole().getId(), ur.getRole().getName()));
         }
         return responses;
+    }
+
+    private UserResponse toResponse(User user) {
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), toRoleResponses(user));
+    }
+
+    private ResponseStatusException notFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+
+    private ResponseStatusException emailInUse() {
+        return new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
     }
 
     private void assertCallerCanManageRole(Set<String> callerRoleNames, String targetRoleName) {

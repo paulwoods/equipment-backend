@@ -6,7 +6,6 @@ import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -22,7 +21,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -97,7 +95,7 @@ public class AuthController {
     @Operation(summary = "Rotate refresh token and issue a new access token")
     @PostMapping("/refresh")
     public ResponseEntity<Void> refresh(HttpServletRequest request, HttpServletResponse response) {
-        String refreshTokenValue = extractCookie(request, "refresh_token");
+        String refreshTokenValue = cookieService.getCookieValue(request, "refresh_token");
         if (refreshTokenValue == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No refresh token");
         }
@@ -165,13 +163,4 @@ public class AuthController {
         return ResponseEntity.ok(new UserResponse(user.getId(), user.getName(), email, roles));
     }
 
-    private String extractCookie(HttpServletRequest request, String name) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies == null) return null;
-        return Arrays.stream(cookies)
-                .filter(c -> name.equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElse(null);
-    }
 }
