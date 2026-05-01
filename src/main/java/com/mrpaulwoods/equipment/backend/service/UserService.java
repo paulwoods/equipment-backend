@@ -43,19 +43,19 @@ public class UserService {
         return saved;
     }
 
-    public Page<UserListResponse> findAll(Pageable pageable) {
+    public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
-                .map(u -> new UserListResponse(u.getId(), u.getName(), u.getEmail(), toRoleResponses(u)));
+                .map(u -> new UserResponse(u.getId(), u.getName(), u.getEmail(), toRoleResponses(u)));
     }
 
-    public UserDetailResponse findById(UUID id) {
+    public UserResponse findById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserDetailResponse(user.getId(), user.getName(), user.getEmail(), toRoleResponses(user));
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), toRoleResponses(user));
     }
 
     @Transactional
-    public UserCreateResponse create(UserRequest request, Set<String> callerRoleNames) {
+    public UserResponse create(UserRequest request, Set<String> callerRoleNames) {
         validateRoleNames(request.roles());
         for (String roleName : request.roles()) {
             assertCallerCanManageRole(callerRoleNames, roleName);
@@ -64,11 +64,11 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
         }
         User saved = createInternal(request.name(), request.email(), request.password(), request.roles());
-        return new UserCreateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional
-    public UserUpdateResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Set<String> callerRoleNames) {
+    public UserResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Set<String> callerRoleNames) {
         if (id.equals(currentUserId) && !callerRoleNames.contains("SYSTEM_ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot modify your own account");
         }
@@ -100,11 +100,11 @@ public class UserService {
         user.setEmail(request.email());
         updateRoles(user, request.roles());
         User saved = userRepository.save(user);
-        return new UserUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional
-    public UserSelfUpdateResponse updateSelf(UUID currentUserId, UserSelfUpdateRequest request) {
+    public UserResponse updateSelf(UUID currentUserId, UserSelfUpdateRequest request) {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -119,7 +119,7 @@ public class UserService {
         user.setName(request.name());
         user.setEmail(request.email());
         User saved = userRepository.save(user);
-        return new UserSelfUpdateResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
+        return new UserResponse(saved.getId(), saved.getName(), saved.getEmail(), toRoleResponses(saved));
     }
 
     @Transactional

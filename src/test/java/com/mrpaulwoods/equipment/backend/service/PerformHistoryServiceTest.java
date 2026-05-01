@@ -4,7 +4,7 @@ import com.mrpaulwoods.equipment.backend.dto.PerformRequest;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
-import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.PerformRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,12 +91,12 @@ class PerformHistoryServiceTest {
     }
 
     @Test
-    void getHistory_unknownProcedure_throwsProcedureNotFoundException() {
+    void getHistory_unknownProcedure_throwsNotFoundException() {
         given(procedureService.getEntityById(EQ_ID, PROC_ID))
-                .willThrow(new ProcedureNotFoundException(PROC_ID.toString()));
+                .willThrow(new NotFoundException("Procedure", PROC_ID.toString()));
 
         assertThatThrownBy(() -> performHistoryService.getHistory(EQ_ID, PROC_ID))
-                .isInstanceOf(ProcedureNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     // ─── record ───────────────────────────────────────────────────────────
@@ -148,13 +148,13 @@ class PerformHistoryServiceTest {
     }
 
     @Test
-    void record_unknownProcedure_throwsProcedureNotFoundException() {
+    void record_unknownProcedure_throwsNotFoundException() {
         given(procedureService.getEntityById(EQ_ID, PROC_ID))
-                .willThrow(new ProcedureNotFoundException(PROC_ID.toString()));
+                .willThrow(new NotFoundException("Procedure", PROC_ID.toString()));
 
         assertThatThrownBy(() -> performHistoryService.record(EQ_ID, PROC_ID,
                 new PerformRequest(LocalDate.now(), null)))
-                .isInstanceOf(ProcedureNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
 
         then(performRepository).should(org.mockito.Mockito.never()).save(any());
     }

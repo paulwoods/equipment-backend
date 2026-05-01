@@ -1,9 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.config.AppProperties;
-import com.mrpaulwoods.equipment.backend.dto.ForgotPasswordRequest;
-import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
-import com.mrpaulwoods.equipment.backend.dto.ResetPasswordRequest;
+import com.mrpaulwoods.equipment.backend.dto.*;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
@@ -15,9 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,9 +23,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -44,7 +39,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final UserDetailsServiceImpl userDetailsService;
     private final UserService userService;
-    private final AppProperties appProperties;
+    private final CookieService cookieService;
     private final LoginRateLimiterService loginRateLimiter;
     private final ForgotPasswordRateLimiterService forgotPasswordRateLimiter;
     private final PasswordResetService passwordResetService;
@@ -76,8 +71,8 @@ public class AuthController {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
-            setAccessTokenCookie(request, response, accessToken);
-            setRefreshTokenCookie(request, response, refreshToken.getToken());
+            cookieService.setAccessTokenCookie(request, response, accessToken);
+            cookieService.setRefreshTokenCookie(request, response, refreshToken.getToken());
 
             loginRateLimiter.recordSuccess(clientIp, email);
             return ResponseEntity.ok(Map.of("email", userDetails.getUsername()));
@@ -94,8 +89,8 @@ public class AuthController {
             userService.findByEmail(authentication.getName())
                     .ifPresent(refreshTokenService::deleteByUser);
         }
-        clearCookie(request, response, "access_token", "/");
-        clearCookie(request, response, "refresh_token", "/");
+        cookieService.clearCookie(request, response, "access_token", "/");
+        cookieService.clearCookie(request, response, "refresh_token", "/");
         return ResponseEntity.ok().build();
     }
 
@@ -113,8 +108,8 @@ public class AuthController {
         UserDetails userDetails = userDetailsService.loadUserByUsername(newRefreshToken.getUser().getEmail());
         String newAccessToken = jwtService.generateToken(userDetails);
 
-        setAccessTokenCookie(request, response, newAccessToken);
-        setRefreshTokenCookie(request, response, newRefreshToken.getToken());
+        cookieService.setAccessTokenCookie(request, response, newAccessToken);
+        cookieService.setRefreshTokenCookie(request, response, newRefreshToken.getToken());
 
         return ResponseEntity.ok().build();
     }
@@ -155,7 +150,7 @@ public class AuthController {
 
     @Operation(summary = "Return the currently authenticated user")
     @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>> me(Authentication authentication) {
+    public ResponseEntity<UserResponse> me(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.ok().build();
         }
@@ -163,54 +158,11 @@ public class AuthController {
         User user = userService.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        List<Map<String, String>> roles = user.getUserRoles().stream()
-                .map(ur -> Map.of("id", ur.getRole().getId().toString(), "name", ur.getRole().getName()))
-                .toList();
+        Set<RoleResponse> roles = user.getUserRoles().stream()
+                .map(ur -> new RoleResponse(ur.getRole().getId(), ur.getRole().getName()))
+                .collect(java.util.stream.Collectors.toSet());
 
-        return ResponseEntity.ok(Map.of(
-                "name", user.getName(),
-                "email", email,
-                "roles", roles,
-                "id", user.getId().toString()
-        ));
-    }
-
-    private void setAccessTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
-        ResponseCookie cookie = ResponseCookie.from("access_token", token)
-                .httpOnly(true)
-                .secure(isCookieSecure(request))
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(3600)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    private void setRefreshTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
-        ResponseCookie cookie = ResponseCookie.from("refresh_token", token)
-                .httpOnly(true)
-                .secure(isCookieSecure(request))
-                .sameSite("Lax")
-                .path("/api/v1/auth")
-                .maxAge(7 * 24 * 3600)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    private void clearCookie(HttpServletRequest request, HttpServletResponse response, String name, String path) {
-        ResponseCookie cookie = ResponseCookie.from(name, "")
-                .httpOnly(true)
-                .secure(isCookieSecure(request))
-                .sameSite("Lax")
-                .path(path)
-                .maxAge(0)
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-    }
-
-    private boolean isCookieSecure(HttpServletRequest request) {
-        Boolean override = appProperties.getCookieSecure();
-        return override != null ? override : request.isSecure();
+        return ResponseEntity.ok(new UserResponse(user.getId(), user.getName(), email, roles));
     }
 
     private String extractCookie(HttpServletRequest request, String name) {

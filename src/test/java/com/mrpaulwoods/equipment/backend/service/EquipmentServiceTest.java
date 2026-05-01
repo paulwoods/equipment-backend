@@ -2,7 +2,7 @@ package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.dto.EquipmentRequest;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
-import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.Test;
@@ -91,12 +91,12 @@ class EquipmentServiceTest {
     }
 
     @Test
-    void getById_nonExistingId_throwsEquipmentNotFoundException() {
+    void getById_nonExistingId_throwsNotFoundException() {
         var id = UUID.randomUUID();
         given(equipmentRepository.findById(id)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> equipmentService.getById(id))
-                .isInstanceOf(EquipmentNotFoundException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -159,12 +159,12 @@ class EquipmentServiceTest {
     }
 
     @Test
-    void update_nonExistingId_throwsEquipmentNotFoundException() {
+    void update_nonExistingId_throwsNotFoundException() {
         var id = UUID.randomUUID();
         given(equipmentRepository.findById(id)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> equipmentService.update(id, sampleRequest()))
-                .isInstanceOf(EquipmentNotFoundException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining(id.toString());
 
         then(equipmentRepository).should(never()).save(any());
@@ -183,12 +183,12 @@ class EquipmentServiceTest {
     }
 
     @Test
-    void delete_nonExistingId_throwsEquipmentNotFoundException() {
+    void delete_nonExistingId_throwsNotFoundException() {
         var id = UUID.randomUUID();
         given(equipmentRepository.existsById(id)).willReturn(false);
 
         assertThatThrownBy(() -> equipmentService.delete(id))
-                .isInstanceOf(EquipmentNotFoundException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining(id.toString());
 
         then(equipmentRepository).should(never()).deleteById(any());

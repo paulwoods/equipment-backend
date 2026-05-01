@@ -3,14 +3,10 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
-import com.mrpaulwoods.equipment.backend.service.JwtService;
-import com.mrpaulwoods.equipment.backend.service.RefreshTokenService;
-import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
-import com.mrpaulwoods.equipment.backend.service.UserService;
+import com.mrpaulwoods.equipment.backend.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -50,13 +46,13 @@ class SetupControllerTest {
     @Mock
     private AppProperties appProperties;
 
-    @InjectMocks
     private SetupController setupController;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        setupController = new SetupController(userService, jwtService, refreshTokenService, userDetailsService, new CookieService(appProperties));
         mockMvc = MockMvcBuilders.standaloneSetup(setupController).build();
     }
 

@@ -1,6 +1,9 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentRequest;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
+import com.mrpaulwoods.equipment.backend.dto.ImportRequest;
+import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
 import com.mrpaulwoods.equipment.backend.service.ExportService;
@@ -43,7 +46,7 @@ public class EquipmentController {
     @Operation(summary = "List all equipment (paginated)")
     @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
-    public ResponseEntity<Page<EquipmentListResponse>> getAll(
+    public ResponseEntity<Page<EquipmentResponse>> getAll(
             @PageableDefault(size = 20, sort = "manufacturer", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(equipmentService.getAll(pageable));
     }
@@ -83,21 +86,21 @@ public class EquipmentController {
     @Operation(summary = "Get a single equipment record by ID")
     @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<EquipmentDetailResponse> getById(@PathVariable UUID id) {
+    public ResponseEntity<EquipmentResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(equipmentService.getById(id));
     }
 
     @Operation(summary = "Create a new equipment record")
     @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
-    public ResponseEntity<EquipmentCreateResponse> create(@Valid @RequestBody EquipmentRequest request) {
+    public ResponseEntity<EquipmentResponse> create(@Valid @RequestBody EquipmentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(equipmentService.create(request));
     }
 
     @Operation(summary = "Update an existing equipment record")
     @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<EquipmentUpdateResponse> update(@PathVariable UUID id,
+    public ResponseEntity<EquipmentResponse> update(@PathVariable UUID id,
                                                           @Valid @RequestBody EquipmentRequest request) {
         return ResponseEntity.ok(equipmentService.update(id, request));
     }

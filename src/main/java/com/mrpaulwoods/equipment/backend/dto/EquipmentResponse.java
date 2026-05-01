@@ -5,7 +5,7 @@ import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record EquipmentListResponse(
+public record EquipmentResponse(
         UUID id,
         String manufacturer,
         String modelNumber,

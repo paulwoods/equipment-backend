@@ -8,14 +8,14 @@ class NotFoundExceptionTest {
 
     @Test
     void equipmentNotFoundException_containsId() {
-        EquipmentNotFoundException ex = new EquipmentNotFoundException("eq-42");
+        NotFoundException ex = new NotFoundException("Equipment", "eq-42");
         assertThat(ex.getMessage()).isEqualTo("Equipment not found: eq-42");
         assertThat(ex).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     void procedureNotFoundException_containsId() {
-        ProcedureNotFoundException ex = new ProcedureNotFoundException("proc-7");
+        NotFoundException ex = new NotFoundException("Procedure", "proc-7");
         assertThat(ex.getMessage()).isEqualTo("Procedure not found: proc-7");
         assertThat(ex).isInstanceOf(RuntimeException.class);
     }

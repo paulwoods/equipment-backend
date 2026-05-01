@@ -1,6 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureRequest;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureResponse;
 import com.mrpaulwoods.equipment.backend.service.ProcedureService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,14 +26,14 @@ public class ProcedureController {
     @Operation(summary = "List all procedures for an equipment record")
     @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
-    public ResponseEntity<List<ProcedureListResponse>> getAll(@PathVariable UUID equipmentId) {
+    public ResponseEntity<List<ProcedureResponse>> getAll(@PathVariable UUID equipmentId) {
         return ResponseEntity.ok(procedureService.getAllForEquipment(equipmentId));
     }
 
     @Operation(summary = "Get a single procedure by ID")
     @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/{procedureId}")
-    public ResponseEntity<ProcedureDetailResponse> getById(@PathVariable UUID equipmentId,
+    public ResponseEntity<ProcedureResponse> getById(@PathVariable UUID equipmentId,
                                                            @PathVariable UUID procedureId) {
         return ResponseEntity.ok(procedureService.getById(equipmentId, procedureId));
     }
@@ -40,7 +41,7 @@ public class ProcedureController {
     @Operation(summary = "Create a new procedure for an equipment record")
     @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
-    public ResponseEntity<ProcedureCreateResponse> create(@PathVariable UUID equipmentId,
+    public ResponseEntity<ProcedureResponse> create(@PathVariable UUID equipmentId,
                                                           @Valid @RequestBody ProcedureRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(procedureService.create(equipmentId, request));
     }
@@ -48,7 +49,7 @@ public class ProcedureController {
     @Operation(summary = "Update an existing procedure")
     @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{procedureId}")
-    public ResponseEntity<ProcedureUpdateResponse> update(@PathVariable UUID equipmentId,
+    public ResponseEntity<ProcedureResponse> update(@PathVariable UUID equipmentId,
                                                           @PathVariable UUID procedureId,
                                                           @Valid @RequestBody ProcedureRequest request) {
         return ResponseEntity.ok(procedureService.update(equipmentId, procedureId, request));

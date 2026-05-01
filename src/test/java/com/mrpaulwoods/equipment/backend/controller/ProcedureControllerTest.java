@@ -1,11 +1,8 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.ProcedureCreateResponse;
-import com.mrpaulwoods.equipment.backend.dto.ProcedureDetailResponse;
-import com.mrpaulwoods.equipment.backend.dto.ProcedureListResponse;
-import com.mrpaulwoods.equipment.backend.dto.ProcedureUpdateResponse;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureResponse;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
-import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.service.ProcedureService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,24 +45,14 @@ class ProcedureControllerTest {
                 .build();
     }
 
-    private ProcedureListResponse sampleListResponse() {
-        return new ProcedureListResponse(PROC_ID, "Oil Change", "Change engine oil",
-                "1. Drain oil\n2. Replace filter\n3. Fill new oil", null, 90);
-    }
-
-    private ProcedureDetailResponse sampleDetailResponse() {
-        return new ProcedureDetailResponse(PROC_ID, "Oil Change", "Change engine oil",
-                "1. Drain oil\n2. Replace filter\n3. Fill new oil", null, 90);
-    }
-
-    private ProcedureCreateResponse sampleCreateResponse() {
-        return new ProcedureCreateResponse(PROC_ID, "Oil Change", "Change engine oil",
+    private ProcedureResponse sampleResponse() {
+        return new ProcedureResponse(PROC_ID, "Oil Change", "Change engine oil",
                 "1. Drain oil\n2. Replace filter\n3. Fill new oil", null, 90);
     }
 
     @Test
     void getAll_returnsProcedureList() throws Exception {
-        when(procedureService.getAllForEquipment(EQ_ID)).thenReturn(List.of(sampleListResponse()));
+        when(procedureService.getAllForEquipment(EQ_ID)).thenReturn(List.of(sampleResponse()));
 
         mockMvc.perform(get("/api/v1/equipment/{eq}/procedures", EQ_ID))
                 .andExpect(status().isOk())
@@ -75,7 +62,7 @@ class ProcedureControllerTest {
 
     @Test
     void getById_whenFound_returnsProcedure() throws Exception {
-        when(procedureService.getById(EQ_ID, PROC_ID)).thenReturn(sampleDetailResponse());
+        when(procedureService.getById(EQ_ID, PROC_ID)).thenReturn(sampleResponse());
 
         mockMvc.perform(get("/api/v1/equipment/{eq}/procedures/{proc}", EQ_ID, PROC_ID))
                 .andExpect(status().isOk())
@@ -87,7 +74,7 @@ class ProcedureControllerTest {
     void getById_whenNotFound_returns404() throws Exception {
         UUID missing = UUID.randomUUID();
         when(procedureService.getById(EQ_ID, missing))
-                .thenThrow(new ProcedureNotFoundException(missing.toString()));
+                .thenThrow(new NotFoundException("Procedure", missing.toString()));
 
         mockMvc.perform(get("/api/v1/equipment/{eq}/procedures/{proc}", EQ_ID, missing))
                 .andExpect(status().isNotFound())
@@ -98,7 +85,7 @@ class ProcedureControllerTest {
 
     @Test
     void create_withValidBody_returns201() throws Exception {
-        when(procedureService.create(eq(EQ_ID), any())).thenReturn(sampleCreateResponse());
+        when(procedureService.create(eq(EQ_ID), any())).thenReturn(sampleResponse());
 
         String body = """
                 {
@@ -132,7 +119,7 @@ class ProcedureControllerTest {
 
     @Test
     void update_withValidBody_returnsUpdatedProcedure() throws Exception {
-        var updated = new ProcedureUpdateResponse(PROC_ID, "Full Oil Change", "Change engine oil",
+        var updated = new ProcedureResponse(PROC_ID, "Full Oil Change", "Change engine oil",
                 "1. Drain oil", null, 90);
         when(procedureService.update(eq(EQ_ID), eq(PROC_ID), any())).thenReturn(updated);
 
@@ -164,7 +151,7 @@ class ProcedureControllerTest {
     @Test
     void delete_whenNotFound_returns404() throws Exception {
         UUID missing = UUID.randomUUID();
-        doThrow(new ProcedureNotFoundException(missing.toString())).when(procedureService).delete(EQ_ID, missing);
+        doThrow(new NotFoundException("Procedure", missing.toString())).when(procedureService).delete(EQ_ID, missing);
 
         mockMvc.perform(delete("/api/v1/equipment/{eq}/procedures/{proc}", EQ_ID, missing))
                 .andExpect(status().isNotFound());

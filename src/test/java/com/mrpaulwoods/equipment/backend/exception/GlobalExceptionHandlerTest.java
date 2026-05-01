@@ -76,12 +76,12 @@ class GlobalExceptionHandlerTest {
 
         @GetMapping("/equipment/{id}")
         public void throwEquipmentNotFound(@PathVariable String id) {
-            throw new EquipmentNotFoundException(id);
+            throw new NotFoundException("Equipment", id);
         }
 
         @GetMapping("/procedure/{id}")
         public void throwProcedureNotFound(@PathVariable String id) {
-            throw new ProcedureNotFoundException(id);
+            throw new NotFoundException("Procedure", id);
         }
 
         @PostMapping("/validated")

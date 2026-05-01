@@ -1,8 +1,9 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureRequest;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureResponse;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
-import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,15 +20,15 @@ public class ProcedureService {
     private final EquipmentService equipmentService;
     private final ProcedureRepository procedureRepository;
 
-    public List<ProcedureListResponse> getAllForEquipment(UUID equipmentId) {
+    public List<ProcedureResponse> getAllForEquipment(UUID equipmentId) {
         var equipment = equipmentService.getEntityById(equipmentId);
         return equipment.getProcedures().stream()
-                .map(this::toListResponse)
+                .map(this::toResponse)
                 .toList();
     }
 
-    public ProcedureDetailResponse getById(UUID equipmentId, UUID procedureId) {
-        return toDetailResponse(getEntityById(equipmentId, procedureId));
+    public ProcedureResponse getById(UUID equipmentId, UUID procedureId) {
+        return toResponse(getEntityById(equipmentId, procedureId));
     }
 
     Procedure getEntityById(UUID equipmentId, UUID procedureId) {
@@ -35,26 +36,26 @@ public class ProcedureService {
         return equipment.getProcedures().stream()
                 .filter(p -> p.getId().equals(procedureId))
                 .findFirst()
-                .orElseThrow(() -> new ProcedureNotFoundException(procedureId.toString()));
+                .orElseThrow(() -> new NotFoundException("Procedure", procedureId.toString()));
     }
 
     @Transactional
-    public ProcedureCreateResponse create(UUID equipmentId, ProcedureRequest request) {
+    public ProcedureResponse create(UUID equipmentId, ProcedureRequest request) {
         var equipment = equipmentService.getEntityById(equipmentId);
         var procedure = toEntity(request);
         procedure.setEquipment(equipment);
-        return toCreateResponse(procedureRepository.save(procedure));
+        return toResponse(procedureRepository.save(procedure));
     }
 
     @Transactional
-    public ProcedureUpdateResponse update(UUID equipmentId, UUID procedureId, ProcedureRequest request) {
+    public ProcedureResponse update(UUID equipmentId, UUID procedureId, ProcedureRequest request) {
         var existing = getEntityById(equipmentId, procedureId);
         existing.setName(request.name());
         existing.setDescription(request.description());
         existing.setSteps(request.steps());
         existing.setRequiredTools(request.requiredTools());
         existing.setIntervalDays(request.intervalDays());
-        return toUpdateResponse(procedureRepository.save(existing));
+        return toResponse(procedureRepository.save(existing));
     }
 
     @Transactional
@@ -73,23 +74,8 @@ public class ProcedureService {
         return p;
     }
 
-    private ProcedureListResponse toListResponse(Procedure p) {
-        return new ProcedureListResponse(p.getId(), p.getName(), p.getDescription(),
-                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
-    }
-
-    private ProcedureDetailResponse toDetailResponse(Procedure p) {
-        return new ProcedureDetailResponse(p.getId(), p.getName(), p.getDescription(),
-                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
-    }
-
-    private ProcedureCreateResponse toCreateResponse(Procedure p) {
-        return new ProcedureCreateResponse(p.getId(), p.getName(), p.getDescription(),
-                p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
-    }
-
-    private ProcedureUpdateResponse toUpdateResponse(Procedure p) {
-        return new ProcedureUpdateResponse(p.getId(), p.getName(), p.getDescription(),
+    private ProcedureResponse toResponse(Procedure p) {
+        return new ProcedureResponse(p.getId(), p.getName(), p.getDescription(),
                 p.getSteps(), p.getRequiredTools(), p.getIntervalDays());
     }
 }

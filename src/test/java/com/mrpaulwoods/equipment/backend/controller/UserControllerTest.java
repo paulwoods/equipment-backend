@@ -1,6 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.RoleResponse;
+import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import org.junit.jupiter.api.AfterEach;
@@ -86,7 +87,7 @@ class UserControllerTest {
     @Test
     void create_withValidBody_returns201() throws Exception {
         authenticateAsAdmin();
-        var response = new UserCreateResponse(USER_ID, "Alice", "new@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
+        var response = new UserResponse(USER_ID, "Alice", "new@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.create(any(), any())).willReturn(response);
 
         String body = """
@@ -119,7 +120,7 @@ class UserControllerTest {
     void findAll_returnsPagedUserList() throws Exception {
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
         var page = new org.springframework.data.domain.PageImpl<>(List.of(
-                new UserListResponse(USER_ID, "Admin", ADMIN_EMAIL, Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")))
+                new UserResponse(USER_ID, "Admin", ADMIN_EMAIL, Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")))
         ), pageable, 1);
         given(userService.findAll(any())).willReturn(page);
 
@@ -132,7 +133,7 @@ class UserControllerTest {
 
     @Test
     void findById_returnsUserDetail() throws Exception {
-        var detail = new UserDetailResponse(USER_ID, "Alice", "alice@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
+        var detail = new UserResponse(USER_ID, "Alice", "alice@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.findById(USER_ID)).willReturn(detail);
 
         mockMvc.perform(get("/api/v1/users/{id}", USER_ID))
@@ -145,7 +146,7 @@ class UserControllerTest {
     void update_withValidBody_returns200() throws Exception {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
-        var response = new UserUpdateResponse(targetId, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
+        var response = new UserResponse(targetId, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
         given(userService.update(any(), any(), any(), any())).willReturn(response);
 
         String body = """
@@ -188,7 +189,7 @@ class UserControllerTest {
     @Test
     void updateMe_withValidBody_returns200() throws Exception {
         authenticateAsAdmin();
-        var response = new UserSelfUpdateResponse(USER_ID, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")));
+        var response = new UserResponse(USER_ID, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "ADMIN")));
         given(userService.updateSelf(any(), any())).willReturn(response);
 
         String body = """

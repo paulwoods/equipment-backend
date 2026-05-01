@@ -1,8 +1,9 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentRequest;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
-import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,29 +20,29 @@ public class EquipmentService {
 
     private final EquipmentRepository equipmentRepository;
 
-    public Page<EquipmentListResponse> getAll(Pageable pageable) {
-        return equipmentRepository.findAll(pageable).map(this::toListResponse);
+    public Page<EquipmentResponse> getAll(Pageable pageable) {
+        return equipmentRepository.findAll(pageable).map(this::toResponse);
     }
 
-    public EquipmentDetailResponse getById(UUID id) {
+    public EquipmentResponse getById(UUID id) {
         return equipmentRepository.findById(id)
-                .map(this::toDetailResponse)
-                .orElseThrow(() -> new EquipmentNotFoundException(id.toString()));
+                .map(this::toResponse)
+                .orElseThrow(() -> new NotFoundException("Equipment", id.toString()));
     }
 
     Equipment getEntityById(UUID id) {
         return equipmentRepository.findById(id)
-                .orElseThrow(() -> new EquipmentNotFoundException(id.toString()));
+                .orElseThrow(() -> new NotFoundException("Equipment", id.toString()));
     }
 
     @Transactional
-    public EquipmentCreateResponse create(EquipmentRequest request) {
+    public EquipmentResponse create(EquipmentRequest request) {
         var equipment = toEntity(request);
-        return toCreateResponse(equipmentRepository.save(equipment));
+        return toResponse(equipmentRepository.save(equipment));
     }
 
     @Transactional
-    public EquipmentUpdateResponse update(UUID id, EquipmentRequest request) {
+    public EquipmentResponse update(UUID id, EquipmentRequest request) {
         var existing = getEntityById(id);
         existing.setManufacturer(request.manufacturer());
         existing.setModelNumber(request.modelNumber());
@@ -51,13 +52,13 @@ public class EquipmentService {
         existing.setStatus(request.status());
         existing.setDescription(request.description());
         existing.setPurchaseDate(request.purchaseDate());
-        return toUpdateResponse(equipmentRepository.save(existing));
+        return toResponse(equipmentRepository.save(existing));
     }
 
     @Transactional
     public void delete(UUID id) {
         if (!equipmentRepository.existsById(id)) {
-            throw new EquipmentNotFoundException(id.toString());
+            throw new NotFoundException("Equipment", id.toString());
         }
         equipmentRepository.deleteById(id);
     }
@@ -75,26 +76,8 @@ public class EquipmentService {
         return e;
     }
 
-    private EquipmentListResponse toListResponse(Equipment e) {
-        return new EquipmentListResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
-                e.getSerialNumber(), e.getAssetTag(), e.getLocation(), e.getStatus(),
-                e.getDescription(), e.getPurchaseDate());
-    }
-
-    private EquipmentDetailResponse toDetailResponse(Equipment e) {
-        return new EquipmentDetailResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
-                e.getSerialNumber(), e.getAssetTag(), e.getLocation(), e.getStatus(),
-                e.getDescription(), e.getPurchaseDate());
-    }
-
-    private EquipmentCreateResponse toCreateResponse(Equipment e) {
-        return new EquipmentCreateResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
-                e.getSerialNumber(), e.getAssetTag(), e.getLocation(), e.getStatus(),
-                e.getDescription(), e.getPurchaseDate());
-    }
-
-    private EquipmentUpdateResponse toUpdateResponse(Equipment e) {
-        return new EquipmentUpdateResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
+    private EquipmentResponse toResponse(Equipment e) {
+        return new EquipmentResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
                 e.getSerialNumber(), e.getAssetTag(), e.getLocation(), e.getStatus(),
                 e.getDescription(), e.getPurchaseDate());
     }

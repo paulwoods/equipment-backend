@@ -81,7 +81,7 @@ class UserServiceTest {
         });
         mockRole("ADMIN");
 
-        UserCreateResponse response = userService.create(request, Set.of("SYSTEM_ADMIN"));
+        UserResponse response = userService.create(request, Set.of("SYSTEM_ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
@@ -100,7 +100,7 @@ class UserServiceTest {
         });
         mockRole("USER");
 
-        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, Set.of("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("USER");
         assertThat(response.name()).isEqualTo("Alice");
@@ -120,7 +120,7 @@ class UserServiceTest {
         });
         mockRole("EDIT");
 
-        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, Set.of("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
     }
@@ -139,7 +139,7 @@ class UserServiceTest {
         });
         mockRole("ADMIN");
 
-        UserCreateResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, Set.of("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
@@ -200,7 +200,7 @@ class UserServiceTest {
         User user = sampleUser(id, "Alice", "alice@example.com");
         given(userRepository.findById(id)).willReturn(Optional.of(user));
 
-        UserDetailResponse result = userService.findById(id);
+        UserResponse result = userService.findById(id);
 
         assertThat(result.id()).isEqualTo(id);
         assertThat(result.name()).isEqualTo("Alice");
@@ -232,7 +232,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("ADMIN");
 
-        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("SYSTEM_ADMIN"));
+        UserResponse result = userService.update(id, request, currentUserId, Set.of("SYSTEM_ADMIN"));
 
         assertThat(result.name()).isEqualTo("New");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
@@ -250,7 +250,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("EDIT");
 
-        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
+        UserResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
 
         assertThat(result.name()).isEqualTo("New Name");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
@@ -268,7 +268,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("ADMIN");
 
-        UserUpdateResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
+        UserResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
 
         assertThat(result.name()).isEqualTo("Admin2");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
@@ -348,7 +348,7 @@ class UserServiceTest {
         given(userRepository.findByEmail("new@example.com")).willReturn(Optional.empty());
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-        UserSelfUpdateResponse result = userService.updateSelf(id, request);
+        UserResponse result = userService.updateSelf(id, request);
 
         assertThat(result.name()).isEqualTo("New Name");
         assertThat(result.email()).isEqualTo("new@example.com");
@@ -364,7 +364,7 @@ class UserServiceTest {
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-        UserSelfUpdateResponse result = userService.updateSelf(id, request);
+        UserResponse result = userService.updateSelf(id, request);
 
         assertThat(result.name()).isEqualTo("Alice Updated");
         then(userRepository).should(never()).findByEmail(any());

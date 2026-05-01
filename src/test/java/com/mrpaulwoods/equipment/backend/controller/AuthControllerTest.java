@@ -79,7 +79,7 @@ class AuthControllerTest {
                 refreshTokenService,
                 userDetailsService,
                 userService,
-                appProperties,
+                new CookieService(appProperties),
                 loginRateLimiter,
                 forgotPasswordRateLimiter,
                 passwordResetService,

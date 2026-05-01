@@ -2,7 +2,7 @@ package com.mrpaulwoods.equipment.backend.dto;
 
 import java.util.UUID;
 
-public record ProcedureCreateResponse(
+public record ProcedureResponse(
         UUID id,
         String name,
         String description,

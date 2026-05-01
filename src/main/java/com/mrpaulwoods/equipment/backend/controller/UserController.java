@@ -33,27 +33,27 @@ public class UserController {
     @Operation(summary = "Create a new user account")
     @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
-    public ResponseEntity<UserCreateResponse> create(@Valid @RequestBody UserRequest request, Authentication authentication) {
+    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request, Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, callerRoles(authentication)));
     }
 
     @Operation(summary = "List all users (paginated)")
     @GetMapping
-    public ResponseEntity<Page<UserListResponse>> findAll(
+    public ResponseEntity<Page<UserResponse>> findAll(
             @PageableDefault(size = 20, sort = "email", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(userService.findAll(pageable));
     }
 
     @Operation(summary = "Get user by ID")
     @GetMapping("/{id}")
-    public ResponseEntity<UserDetailResponse> findById(@PathVariable UUID id) {
+    public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(userService.findById(id));
     }
 
     @Operation(summary = "Update a user account")
     @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<UserUpdateResponse> update(
+    public ResponseEntity<UserResponse> update(
             @PathVariable UUID id,
             @Valid @RequestBody UserUpdateRequest request,
             Authentication authentication) {
@@ -73,7 +73,7 @@ public class UserController {
     @Operation(summary = "Update own name and email")
     @PreAuthorize("isAuthenticated()")
     @PutMapping("/me")
-    public ResponseEntity<UserSelfUpdateResponse> updateMe(
+    public ResponseEntity<UserResponse> updateMe(
             @Valid @RequestBody UserSelfUpdateRequest request,
             Authentication authentication) {
         UUID currentUserId = currentUserId(authentication);

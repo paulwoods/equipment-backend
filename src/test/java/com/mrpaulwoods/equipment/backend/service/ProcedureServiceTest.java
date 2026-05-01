@@ -3,8 +3,7 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.dto.ProcedureRequest;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
-import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
-import com.mrpaulwoods.equipment.backend.exception.ProcedureNotFoundException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,11 +75,11 @@ class ProcedureServiceTest {
     }
 
     @Test
-    void getAllForEquipment_unknownEquipment_throwsEquipmentNotFoundException() {
-        given(equipmentService.getEntityById(EQ_ID)).willThrow(new EquipmentNotFoundException(EQ_ID.toString()));
+    void getAllForEquipment_unknownEquipment_throwsNotFoundException() {
+        given(equipmentService.getEntityById(EQ_ID)).willThrow(new NotFoundException("Equipment", EQ_ID.toString()));
 
         assertThatThrownBy(() -> procedureService.getAllForEquipment(EQ_ID))
-                .isInstanceOf(EquipmentNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     // ─── getById ──────────────────────────────────────────────────────────
@@ -96,12 +95,12 @@ class ProcedureServiceTest {
     }
 
     @Test
-    void getById_procedureNotOnEquipment_throwsProcedureNotFoundException() {
+    void getById_procedureNotOnEquipment_throwsNotFoundException() {
         given(equipmentService.getEntityById(EQ_ID)).willReturn(equipment);
         var otherId = UUID.randomUUID();
 
         assertThatThrownBy(() -> procedureService.getById(EQ_ID, otherId))
-                .isInstanceOf(ProcedureNotFoundException.class)
+                .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining(otherId.toString());
     }
 
@@ -150,12 +149,12 @@ class ProcedureServiceTest {
     }
 
     @Test
-    void update_unknownProcedure_throwsProcedureNotFoundException() {
+    void update_unknownProcedure_throwsNotFoundException() {
         given(equipmentService.getEntityById(EQ_ID)).willReturn(equipment);
         var otherId = UUID.randomUUID();
 
         assertThatThrownBy(() -> procedureService.update(EQ_ID, otherId, sampleRequest()))
-                .isInstanceOf(ProcedureNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
 
         then(procedureRepository).should(org.mockito.Mockito.never()).save(any());
     }
@@ -172,12 +171,12 @@ class ProcedureServiceTest {
     }
 
     @Test
-    void delete_unknownProcedure_throwsProcedureNotFoundException() {
+    void delete_unknownProcedure_throwsNotFoundException() {
         given(equipmentService.getEntityById(EQ_ID)).willReturn(equipment);
         var otherId = UUID.randomUUID();
 
         assertThatThrownBy(() -> procedureService.delete(EQ_ID, otherId))
-                .isInstanceOf(ProcedureNotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
 
         then(procedureRepository).should(org.mockito.Mockito.never()).delete(any());
     }

@@ -19,20 +19,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(EquipmentNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleEquipmentNotFound(EquipmentNotFoundException ex,
-                                                                 jakarta.servlet.http.HttpServletRequest request) {
-        log.warn("Equipment not found: {}", ex.getMessage());
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Resource Not Found");
-        problem.setInstance(URI.create(request.getRequestURI()));
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
-    }
-
-    @ExceptionHandler(ProcedureNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleProcedureNotFound(ProcedureNotFoundException ex,
-                                                                 jakarta.servlet.http.HttpServletRequest request) {
-        log.warn("Procedure not found: {}", ex.getMessage());
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleNotFound(NotFoundException ex,
+                                                        jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Resource not found: {}", ex.getMessage());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Resource Not Found");
         problem.setInstance(URI.create(request.getRequestURI()));

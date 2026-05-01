@@ -1,10 +1,11 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
-import com.mrpaulwoods.equipment.backend.dto.*;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
+import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
-import com.mrpaulwoods.equipment.backend.exception.EquipmentNotFoundException;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
+import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
 import com.mrpaulwoods.equipment.backend.service.ExportService;
 import com.mrpaulwoods.equipment.backend.service.ImportService;
@@ -63,18 +64,8 @@ class EquipmentControllerTest {
                 .build();
     }
 
-    private EquipmentListResponse sampleListResponse() {
-        return new EquipmentListResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
-                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
-    }
-
-    private EquipmentDetailResponse sampleDetailResponse() {
-        return new EquipmentDetailResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
-                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
-    }
-
-    private EquipmentCreateResponse sampleCreateResponse() {
-        return new EquipmentCreateResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
+    private EquipmentResponse sampleResponse() {
+        return new EquipmentResponse(EQ_ID, "Acme", "X100", "SN-001", null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
     }
 
@@ -92,7 +83,7 @@ class EquipmentControllerTest {
     @Test
     void getAll_returnsPagedEquipmentList() throws Exception {
         var pageable = org.springframework.data.domain.PageRequest.of(0, 20);
-        var page = new org.springframework.data.domain.PageImpl<>(List.of(sampleListResponse()), pageable, 1);
+        var page = new org.springframework.data.domain.PageImpl<>(List.of(sampleResponse()), pageable, 1);
         when(equipmentService.getAll(any())).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/equipment"))
@@ -103,7 +94,7 @@ class EquipmentControllerTest {
 
     @Test
     void getById_whenFound_returnsEquipment() throws Exception {
-        when(equipmentService.getById(EQ_ID)).thenReturn(sampleDetailResponse());
+        when(equipmentService.getById(EQ_ID)).thenReturn(sampleResponse());
 
         mockMvc.perform(get("/api/v1/equipment/{id}", EQ_ID))
                 .andExpect(status().isOk())
@@ -114,7 +105,7 @@ class EquipmentControllerTest {
     @Test
     void getById_whenNotFound_returns404() throws Exception {
         UUID missing = UUID.randomUUID();
-        when(equipmentService.getById(missing)).thenThrow(new EquipmentNotFoundException(missing.toString()));
+        when(equipmentService.getById(missing)).thenThrow(new NotFoundException("Equipment", missing.toString()));
 
         mockMvc.perform(get("/api/v1/equipment/{id}", missing))
                 .andExpect(status().isNotFound())
@@ -125,7 +116,7 @@ class EquipmentControllerTest {
 
     @Test
     void create_withValidBody_returns201() throws Exception {
-        when(equipmentService.create(any())).thenReturn(sampleCreateResponse());
+        when(equipmentService.create(any())).thenReturn(sampleResponse());
 
         String body = """
                 {
@@ -160,7 +151,7 @@ class EquipmentControllerTest {
 
     @Test
     void update_withValidBody_returnsUpdatedEquipment() throws Exception {
-        var updated = new EquipmentUpdateResponse(EQ_ID, "NewCorp", "X100", "SN-001", null, null,
+        var updated = new EquipmentResponse(EQ_ID, "NewCorp", "X100", "SN-001", null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
         when(equipmentService.update(eq(EQ_ID), any())).thenReturn(updated);
 
@@ -193,7 +184,7 @@ class EquipmentControllerTest {
     @Test
     void delete_whenNotFound_returns404() throws Exception {
         UUID missing = UUID.randomUUID();
-        doThrow(new EquipmentNotFoundException(missing.toString())).when(equipmentService).delete(missing);
+        doThrow(new NotFoundException("Equipment", missing.toString())).when(equipmentService).delete(missing);
 
         mockMvc.perform(delete("/api/v1/equipment/{id}", missing))
                 .andExpect(status().isNotFound());
