@@ -48,7 +48,7 @@ public class SetupController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
         }
 
-        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Set.of("SYSTEM_ADMIN"));
+        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateToken(userDetails);

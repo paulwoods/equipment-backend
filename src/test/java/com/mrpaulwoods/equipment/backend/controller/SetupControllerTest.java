@@ -81,10 +81,10 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
-                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
+                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
 
@@ -113,10 +113,10 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
-                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
+                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
 
@@ -160,10 +160,10 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN"))).thenReturn(user);
+        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
-                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN")));
+                "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
         when(jwtService.generateToken(ud)).thenReturn("access-token");
 
