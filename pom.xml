@@ -16,21 +16,22 @@
     <name>backend</name>
     <description>backend</description>
 
-    <url/>
+    <url>https://github.com/mrpaulwoods/equipment-backend</url>
 
     <licenses>
         <license/>
     </licenses>
 
     <developers>
-        <developer/>
+        <developer>
+            <name>Paul Woods</name>
+            <url>https://github.com/paulwoods</url>
+        </developer>
     </developers>
 
     <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
+        <connection>https://github.com/mrpaulwoods/equipment-backend.git</connection>
+        <developerConnection>https://github.com/mrpaulwoods/equipment-backend.git</developerConnection>
     </scm>
 
     <properties>
