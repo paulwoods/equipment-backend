@@ -28,6 +28,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Run tests
+        working-directory: ./backend
+        run: ./mvnw test
+
       - name: Read version
         id: version
         working-directory: ./backend
