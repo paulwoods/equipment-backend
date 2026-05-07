@@ -31,8 +31,7 @@ public class ApiRateLimitFilter implements Filter {
             "/api/v1/auth/refresh",
             "/api/v1/setup/",
             "/api/v1/version",
-            "/actuator/",
-            "/api/v1/test/"
+            "/actuator/"
     );
 
     private final AppProperties appProperties;
