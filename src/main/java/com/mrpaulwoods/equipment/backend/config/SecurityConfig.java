@@ -38,6 +38,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) {
         http
+                // CSRF disabled: same-origin SPA + SameSite=Lax cookies + CORS allow-list. See docs/adr/0018-csrf-posture-revisit.md for trigger conditions to revisit.
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(headers -> headers
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
