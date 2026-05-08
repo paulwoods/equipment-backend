@@ -1,17 +1,3 @@
-# ─── Stage 1: Build ───────────────────────────────────────────────────────────
-FROM eclipse-temurin:25.0.2_10-jdk-noble AS build
-WORKDIR /workspace
-
-# Cache dependencies — only re-runs when pom.xml changes
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN ./mvnw dependency:go-offline -q
-
-# Build the jar
-COPY src/ src/
-RUN ./mvnw clean package -DskipTests -q
-
-# ─── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM eclipse-temurin:25.0.2_10-jre-noble
 
 # Install curl for health check
@@ -22,7 +8,10 @@ RUN groupadd spring && useradd -g spring spring
 USER spring:spring
 
 WORKDIR /app
-COPY --from=build /workspace/target/*.jar app.jar
+
+# Expects the JAR to be prebuilt by `./mvnw package` (or `verify`) before `docker build`.
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} app.jar
 
 EXPOSE 8080
 
