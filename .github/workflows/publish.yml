@@ -81,11 +81,18 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists; skipping."
+          if git ls-remote --tags --exit-code origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists on remote; skipping."
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v${VERSION}"
-          git push origin "v${VERSION}"
+          if ! git push origin "v${VERSION}" 2>push.err; then
+            if grep -q "already exists" push.err; then
+              echo "Tag v${VERSION} was created concurrently by another workflow; treating as success."
+              exit 0
+            fi
+            cat push.err >&2
+            exit 1
+          fi
