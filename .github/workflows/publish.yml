@@ -3,7 +3,6 @@ name: Publish Backend
 on:
   push:
     branches: [ develop ]
-    paths: [ backend/** ]
 
 concurrency:
   group: publish-backend-${{ github.ref }}
@@ -29,7 +28,6 @@ jobs:
           cache: 'maven'
 
       - name: Build and verify
-        working-directory: ./backend
         run: ./mvnw -B verify
 
       - name: Upload test reports
@@ -38,8 +36,8 @@ jobs:
         with:
           name: backend-test-reports
           path: |
-            backend/target/surefire-reports/**
-            backend/target/failsafe-reports/**
+            target/surefire-reports/**
+            target/failsafe-reports/**
           if-no-files-found: ignore
 
       - name: Log in to Docker Hub
@@ -53,7 +51,6 @@ jobs:
 
       - name: Read version
         id: version
-        working-directory: ./backend
         run: |
           VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -71,7 +68,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: ./backend
+          context: .
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
