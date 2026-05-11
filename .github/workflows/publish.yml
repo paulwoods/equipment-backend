@@ -116,6 +116,13 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
 
+      - name: Back up database on droplet
+        run: |
+          ssh "$DROPLET_USER@$DROPLET_HOST" bash -s <<'EOF'
+          set -euo pipefail
+          ~/equipment/backup.sh
+          EOF
+
       - name: Deploy backend on droplet
         run: |
           ssh "$DROPLET_USER@$DROPLET_HOST" VERSION="$VERSION" bash -s <<'EOF'
