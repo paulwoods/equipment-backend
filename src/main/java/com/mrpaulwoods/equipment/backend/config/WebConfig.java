@@ -21,7 +21,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] origins = appProperties.getCorsAllowedOrigins().split(",");
+        // CSRF is disabled, so every entry here is a CSRF-trusted origin: a compromised
+        // or attacker-controlled site in this list can make authenticated cross-origin
+        // requests with the user's cookies. Keep this list as narrow as possible.
+        String[] origins = java.util.Arrays.stream(appProperties.getCorsAllowedOrigins().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
         registry.addMapping("/api/v1/**")
                 .allowedOrigins(origins)
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
