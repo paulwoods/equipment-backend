@@ -29,7 +29,6 @@ public class ApiRateLimitFilter implements Filter {
     private static final List<String> SKIP_PATHS = List.of(
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
-            "/api/v1/setup/",
             "/api/v1/version",
             "/actuator/"
     );
