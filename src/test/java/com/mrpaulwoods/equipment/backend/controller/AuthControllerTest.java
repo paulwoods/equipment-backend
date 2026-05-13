@@ -119,7 +119,7 @@ class AuthControllerTest {
 
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
@@ -142,7 +142,7 @@ class AuthControllerTest {
         RefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
@@ -183,7 +183,7 @@ class AuthControllerTest {
         RefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
@@ -210,7 +210,7 @@ class AuthControllerTest {
         RefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 
@@ -262,7 +262,7 @@ class AuthControllerTest {
 
         when(refreshTokenService.validateAndRotate("old-refresh")).thenReturn(Optional.of(rotated));
         when(userDetailsService.loadUserByUsername(email)).thenReturn(ud);
-        when(jwtService.generateToken(ud)).thenReturn("new-access");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("new-access");
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
                         .secure(true)
@@ -337,7 +337,7 @@ class AuthControllerTest {
         RefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
 

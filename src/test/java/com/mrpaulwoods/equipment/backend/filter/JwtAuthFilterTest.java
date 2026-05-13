@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.filter;
 
+import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.CookieService;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
@@ -27,6 +28,9 @@ class JwtAuthFilterTest {
 
     @Mock
     private CookieService cookieService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private JwtAuthFilter jwtAuthFilter;

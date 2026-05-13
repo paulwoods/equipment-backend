@@ -37,4 +37,7 @@ public class User {
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion = 0L;
 }

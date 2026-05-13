@@ -20,13 +20,14 @@ public class JwtService {
 
     private final AppProperties appProperties;
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, long tokenVersion) {
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(a -> a.getAuthority().replaceFirst("^ROLE_", ""))
                 .toList();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim("roles", roles)
+                .claim("tv", tokenVersion)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + appProperties.getJwtExpirationMs()))
                 .signWith(getSigningKey())
@@ -35,6 +36,14 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public Long extractTokenVersion(String token) {
+        Object tv = parseClaims(token).get("tv");
+        if (tv instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
     }
 
     public boolean isTokenValid(String token) {

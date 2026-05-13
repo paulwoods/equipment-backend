@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -86,7 +88,7 @@ class SetupControllerTest {
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
         rt.setToken(UUID.randomUUID().toString());
@@ -118,7 +120,7 @@ class SetupControllerTest {
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
         rt.setToken(UUID.randomUUID().toString());
@@ -165,7 +167,7 @@ class SetupControllerTest {
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
         when(userDetailsService.loadUserByUsername("admin@example.com")).thenReturn(ud);
-        when(jwtService.generateToken(ud)).thenReturn("access-token");
+        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
         rt.setToken(UUID.randomUUID().toString());

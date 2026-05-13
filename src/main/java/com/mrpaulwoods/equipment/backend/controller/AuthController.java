@@ -63,10 +63,10 @@ public class AuthController {
             );
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             assert userDetails != null;
-            String accessToken = jwtService.generateToken(userDetails);
 
             User user = userService.findByEmail(email)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+            String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
             cookieService.setAccessTokenCookie(request, response, accessToken);
@@ -84,8 +84,10 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
         if (authentication != null) {
-            userService.findByEmail(authentication.getName())
-                    .ifPresent(refreshTokenService::deleteByUser);
+            userService.findByEmail(authentication.getName()).ifPresent(user -> {
+                refreshTokenService.deleteByUser(user);
+                userService.bumpTokenVersion(user);
+            });
         }
         cookieService.clearCookie(request, response, "access_token", "/");
         cookieService.clearCookie(request, response, "refresh_token", "/");
@@ -104,7 +106,7 @@ public class AuthController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(newRefreshToken.getUser().getEmail());
-        String newAccessToken = jwtService.generateToken(userDetails);
+        String newAccessToken = jwtService.generateToken(userDetails, newRefreshToken.getUser().getTokenVersion());
 
         cookieService.setAccessTokenCookie(request, response, newAccessToken);
         cookieService.setRefreshTokenCookie(request, response, newRefreshToken.getToken());

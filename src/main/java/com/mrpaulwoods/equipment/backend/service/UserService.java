@@ -31,6 +31,7 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserRoleRepository userRoleRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional
     public User createInternal(String name, String email, String password, Set<String> roleNames) {
@@ -132,6 +133,14 @@ public class UserService {
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        userRepository.save(user);
+        refreshTokenService.deleteByUser(user);
+    }
+
+    @Transactional
+    public void bumpTokenVersion(User user) {
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
     }
 

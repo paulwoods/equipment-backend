@@ -21,6 +21,7 @@ public class PasswordResetService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional
     public String createResetToken(User user) {
@@ -50,6 +51,8 @@ public class PasswordResetService {
 
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         passwordResetTokenRepository.delete(resetToken);
+        refreshTokenService.deleteByUser(user);
     }
 }

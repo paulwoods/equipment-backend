@@ -51,7 +51,7 @@ public class SetupController {
         User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"));
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String accessToken = jwtService.generateToken(userDetails);
+        String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         cookieService.setAccessTokenCookie(request, response, accessToken);

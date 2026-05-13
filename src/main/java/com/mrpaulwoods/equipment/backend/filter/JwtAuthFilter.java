@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.filter;
 
+import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.CookieService;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
@@ -26,6 +27,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
     private final CookieService cookieService;
+    private final UserRepository userRepository;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -46,14 +48,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (token != null && jwtService.isTokenValid(token)) {
             String email = jwtService.extractEmail(token);
+            Long tokenVersion = jwtService.extractTokenVersion(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    long currentTokenVersion = userRepository.findByEmail(email)
+                            .map(com.mrpaulwoods.equipment.backend.entity.User::getTokenVersion)
+                            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+                    if (tokenVersion == null || tokenVersion != currentTokenVersion) {
+                        SecurityContextHolder.clearContext();
+                    } else {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities()
+                        );
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
                 } catch (UsernameNotFoundException e) {
                     SecurityContextHolder.clearContext();
                 }
