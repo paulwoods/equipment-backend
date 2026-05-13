@@ -249,8 +249,11 @@ class AuthControllerTest {
             assertThat(h).contains("HttpOnly");
             assertThat(h).contains("SameSite=Lax");
             assertThat(h).contains("Secure");
-            assertThat(h).contains("Path=/");
         }
+        String accessHeader = setCookies.stream().filter(h -> h.startsWith("access_token=")).findFirst().orElseThrow();
+        assertThat(accessHeader).contains("Path=/");
+        String refreshHeader = setCookies.stream().filter(h -> h.startsWith("refresh_token=")).findFirst().orElseThrow();
+        assertThat(refreshHeader).contains("Path=/api/v1/auth");
     }
 
     @Test

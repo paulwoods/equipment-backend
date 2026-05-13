@@ -90,7 +90,7 @@ public class AuthController {
             });
         }
         cookieService.clearCookie(request, response, "access_token", "/");
-        cookieService.clearCookie(request, response, "refresh_token", "/");
+        cookieService.clearCookie(request, response, "refresh_token", "/api/v1/auth");
         return ResponseEntity.ok().build();
     }
 
