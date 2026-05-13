@@ -38,6 +38,7 @@ public class UserController {
     }
 
     @Operation(summary = "List all users (paginated)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
     public ResponseEntity<Page<UserResponse>> findAll(
             @PageableDefault(size = 20, sort = "email", direction = Sort.Direction.ASC) Pageable pageable) {
@@ -45,6 +46,7 @@ public class UserController {
     }
 
     @Operation(summary = "Get user by ID")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {
         return ResponseEntity.ok(userService.findById(id));
