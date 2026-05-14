@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -64,6 +65,9 @@ class AuthControllerTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     private AppProperties appProperties;
 
     private AuthController authController;
@@ -83,7 +87,8 @@ class AuthControllerTest {
                 loginRateLimiter,
                 forgotPasswordRateLimiter,
                 passwordResetService,
-                emailService
+                emailService,
+                passwordEncoder
         );
         lenient().when(loginRateLimiter.isBlocked(anyString(), anyString())).thenReturn(false);
         lenient().when(forgotPasswordRateLimiter.isBlocked(anyString())).thenReturn(false);
@@ -290,6 +295,7 @@ class AuthControllerTest {
 
     @Test
     void login_withInvalidCredentials_returns401() throws Exception {
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(appUser("admin@example.com")));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
 
         String body = """
@@ -300,6 +306,22 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_whenUserNotFound_returns401AndPerformsDummyBcryptToEqualizeTiming() throws Exception {
+        when(userService.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "ghost@example.com", "password": "anypass12"}
+                                """))
+                .andExpect(status().isUnauthorized());
+
+        verify(passwordEncoder).matches(eq("anypass12"), anyString());
+        verify(authenticationManager, never()).authenticate(any());
+        verify(loginRateLimiter).recordFailure(anyString(), eq("ghost@example.com"));
     }
 
     @Test
@@ -319,6 +341,7 @@ class AuthControllerTest {
 
     @Test
     void login_withInvalidCredentials_recordsFailure() throws Exception {
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(appUser("admin@example.com")));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
 
         mockMvc.perform(post("/api/v1/auth/login")

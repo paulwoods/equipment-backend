@@ -18,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -42,6 +43,10 @@ public class AuthController {
     private final ForgotPasswordRateLimiterService forgotPasswordRateLimiter;
     private final PasswordResetService passwordResetService;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
+
+    // Pre-computed BCrypt hash of a random value, used to equalize timing when the user does not exist.
+    private static final String DUMMY_BCRYPT_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOa3wfP3o4Bz1pXQp6n1XJ8B5y9C5VYqK";
 
     @Operation(summary = "Log in with email and password")
     @PostMapping("/login")
@@ -57,6 +62,14 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many login attempts");
         }
 
+        Optional<User> existingUser = userService.findByEmail(email);
+        if (existingUser.isEmpty()) {
+            // Equalize timing with the password-mismatch path so attackers cannot enumerate users.
+            passwordEncoder.matches(loginRequest.password(), DUMMY_BCRYPT_HASH);
+            loginRateLimiter.recordFailure(clientIp, email);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, loginRequest.password())
@@ -64,8 +77,7 @@ public class AuthController {
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             assert userDetails != null;
 
-            User user = userService.findByEmail(email)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+            User user = existingUser.get();
             String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
