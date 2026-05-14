@@ -37,6 +37,7 @@
     <properties>
         <java.version>25</java.version>
         <jsonwebtoken.version>0.13.0</jsonwebtoken.version>
+        <shedlock.version>6.6.0</shedlock.version>
     </properties>
 
     <dependencies>
@@ -188,6 +189,18 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jsonwebtoken.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
         </dependency>
 
         <dependency>
