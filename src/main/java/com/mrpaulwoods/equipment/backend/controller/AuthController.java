@@ -1,7 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.*;
-import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -79,10 +78,10 @@ public class AuthController {
 
             User user = existingUser.get();
             String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+            RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
             cookieService.setAccessTokenCookie(request, response, accessToken);
-            cookieService.setRefreshTokenCookie(request, response, refreshToken.getToken());
+            cookieService.setRefreshTokenCookie(request, response, refreshToken.rawToken());
 
             loginRateLimiter.recordSuccess(clientIp, email);
             return ResponseEntity.ok(Map.of("email", userDetails.getUsername()));
@@ -114,14 +113,15 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No refresh token");
         }
 
-        RefreshToken newRefreshToken = refreshTokenService.validateAndRotate(refreshTokenValue)
+        RefreshTokenService.IssuedRefreshToken newRefreshToken = refreshTokenService.validateAndRotate(refreshTokenValue)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(newRefreshToken.getUser().getEmail());
-        String newAccessToken = jwtService.generateToken(userDetails, newRefreshToken.getUser().getTokenVersion());
+        User user = newRefreshToken.refreshToken().getUser();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String newAccessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
 
         cookieService.setAccessTokenCookie(request, response, newAccessToken);
-        cookieService.setRefreshTokenCookie(request, response, newRefreshToken.getToken());
+        cookieService.setRefreshTokenCookie(request, response, newRefreshToken.rawToken());
 
         return ResponseEntity.ok().build();
     }

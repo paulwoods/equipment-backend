@@ -3,6 +3,8 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.filter.JwtAuthFilter;
+import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,8 +18,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -107,12 +111,12 @@ class AuthControllerTest {
         return user;
     }
 
-    private RefreshToken refreshToken(User user) {
+    private RefreshTokenService.IssuedRefreshToken refreshToken(User user) {
         RefreshToken rt = new RefreshToken();
-        rt.setToken(UUID.randomUUID().toString());
+        rt.setToken("hashed-token");
         rt.setUser(user);
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
-        return rt;
+        return new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt);
     }
 
     @Test
@@ -120,7 +124,7 @@ class AuthControllerTest {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rt = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
 
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
@@ -144,7 +148,7 @@ class AuthControllerTest {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rt = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
@@ -185,7 +189,7 @@ class AuthControllerTest {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rt = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
@@ -212,7 +216,7 @@ class AuthControllerTest {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rt = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
@@ -262,11 +266,72 @@ class AuthControllerTest {
     }
 
     @Test
+    void logout_withAuthenticatedPrincipal_revokesRefreshTokensAndBumpsTokenVersion() throws Exception {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getName()).thenReturn("admin@example.com");
+        User user = appUser("admin@example.com");
+        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+
+        mockMvc.perform(post("/api/v1/auth/logout").principal(auth))
+                .andExpect(status().isOk());
+
+        verify(refreshTokenService).deleteByUser(user);
+        verify(userService).bumpTokenVersion(user);
+    }
+
+    @Test
+    void logout_withoutAuthentication_stillClearsCookiesAndReturns200() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/logout"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies).hasSize(2);
+        verify(refreshTokenService, never()).deleteByUser(any());
+        verify(userService, never()).bumpTokenVersion(any());
+    }
+
+    @Test
+    void logout_withAccessTokenCookie_runsJwtFilterAndRevokesTokens() throws Exception {
+        // Exercises the real JwtAuthFilter on /logout: a regression that re-adds the
+        // path to shouldNotFilter would leave Authentication null and fail this test.
+        UserRepository userRepository = mock(UserRepository.class);
+        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(
+                jwtService, userDetailsService, new CookieService(appProperties), userRepository);
+        SecurityContextHolderAwareRequestFilter securityContextFilter = new SecurityContextHolderAwareRequestFilter();
+        securityContextFilter.afterPropertiesSet();
+        MockMvc filteredMockMvc = MockMvcBuilders.standaloneSetup(authController)
+                .addFilters(jwtAuthFilter, securityContextFilter)
+                .build();
+
+        String email = "admin@example.com";
+        User user = appUser(email);
+        user.setTokenVersion(5L);
+        when(jwtService.isTokenValid("valid-jwt")).thenReturn(true);
+        when(jwtService.extractEmail("valid-jwt")).thenReturn(email);
+        when(jwtService.extractTokenVersion("valid-jwt")).thenReturn(5L);
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails(email));
+        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
+
+        try {
+            filteredMockMvc.perform(post("/api/v1/auth/logout")
+                            .cookie(new jakarta.servlet.http.Cookie("access_token", "valid-jwt")))
+                    .andExpect(status().isOk());
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+
+        verify(refreshTokenService).deleteByUser(user);
+        verify(userService).bumpTokenVersion(user);
+    }
+
+    @Test
     void refresh_overHttps_setsSecureCookies() throws Exception {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rotated = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rotated = refreshToken(user);
 
         when(refreshTokenService.validateAndRotate("old-refresh")).thenReturn(Optional.of(rotated));
         when(userDetailsService.loadUserByUsername(email)).thenReturn(ud);
@@ -360,7 +425,7 @@ class AuthControllerTest {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
-        RefreshToken rt = refreshToken(user);
+        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");

@@ -50,10 +50,10 @@ class JwtAuthFilterTest {
     }
 
     @Test
-    void shouldNotFilter_returnsTrueForLogoutPath() {
+    void shouldNotFilter_returnsFalseForLogoutPath() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getServletPath()).thenReturn("/api/v1/auth/logout");
-        assertTrue(jwtAuthFilter.shouldNotFilter(request));
+        assertFalse(jwtAuthFilter.shouldNotFilter(request));
     }
 
     @Test

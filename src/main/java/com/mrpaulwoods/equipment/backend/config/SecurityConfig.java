@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/setup/**").permitAll()
                         .requestMatchers("/api/v1/**").authenticated()
+                        // Must stay above anyRequest().permitAll(): rules are evaluated in order,
+                        // so moving this below the catch-all would expose the API docs anonymously.
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .authenticationProvider(daoAuthenticationProvider())

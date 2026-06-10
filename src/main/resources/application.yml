@@ -1,5 +1,14 @@
 server:
-  forward-headers-strategy: native
+  # Off by default so X-Forwarded-* headers from clients are ignored (they would
+  # otherwise let attackers spoof their IP and bypass rate limiting). Deployments
+  # behind a trusted reverse proxy should set SERVER_FORWARD_HEADERS_STRATEGY=native
+  # AND set SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES to a regex matching only the
+  # proxy's IP(s). With the empty default, no proxies are trusted even when the
+  # strategy is enabled (fail-secure).
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  tomcat:
+    remoteip:
+      internal-proxies: ${SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES:}
 
 spring:
   datasource:

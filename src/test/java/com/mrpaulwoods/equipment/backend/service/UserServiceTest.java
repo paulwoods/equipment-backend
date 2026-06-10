@@ -7,6 +7,8 @@ import com.mrpaulwoods.equipment.backend.entity.UserRole;
 import com.mrpaulwoods.equipment.backend.repository.RoleRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRoleRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,6 +46,9 @@ class UserServiceTest {
 
     @Mock
     private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private EntityManager entityManager;
 
     @InjectMocks
     private UserService userService;
@@ -532,6 +537,47 @@ class UserServiceTest {
     void isSetupRequired_whenUsersExist_returnsFalse() {
         given(userRepository.count()).willReturn(1L);
         assertThat(userService.isSetupRequired()).isFalse();
+    }
+
+    // --- createInitialAdmin ---
+
+    private void mockAdvisoryLock() {
+        Query query = org.mockito.Mockito.mock(Query.class);
+        given(entityManager.createNativeQuery(org.mockito.ArgumentMatchers.contains("pg_advisory_xact_lock"))).willReturn(query);
+        given(query.getSingleResult()).willReturn(Boolean.TRUE);
+    }
+
+    @Test
+    void createInitialAdmin_whenNoUsers_createsSystemAdminWithAllRoles() {
+        mockAdvisoryLock();
+        given(userRepository.count()).willReturn(0L);
+        given(passwordEncoder.encode("secret")).willReturn("hashed");
+        given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        mockRole("SYSTEM_ADMIN");
+        mockRole("ADMIN");
+        mockRole("EDIT");
+        mockRole("USER");
+
+        User created = userService.createInitialAdmin("admin@example.com", "secret");
+
+        assertThat(created.getEmail()).isEqualTo("admin@example.com");
+        assertThat(created.getName()).isEqualTo("admin@example.com");
+        assertThat(created.getPassword()).isEqualTo("hashed");
+        assertThat(created.getUserRoles()).hasSize(4);
+        then(entityManager).should().createNativeQuery(org.mockito.ArgumentMatchers.contains("pg_advisory_xact_lock"));
+    }
+
+    @Test
+    void createInitialAdmin_whenUsersAlreadyExist_throwsConflict() {
+        mockAdvisoryLock();
+        given(userRepository.count()).willReturn(1L);
+
+        assertThatThrownBy(() -> userService.createInitialAdmin("admin@example.com", "secret"))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+                .isEqualTo(HttpStatus.CONFLICT.value());
+
+        then(userRepository).should(never()).save(any());
     }
 
     // --- findByEmail ---

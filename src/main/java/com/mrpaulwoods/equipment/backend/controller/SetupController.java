@@ -1,7 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.SetupRequest;
-import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.service.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/setup")
@@ -48,14 +46,14 @@ public class SetupController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
         }
 
-        User user = userService.createInternal(setupRequest.email(), setupRequest.email(), setupRequest.password(), Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"));
+        User user = userService.createInitialAdmin(setupRequest.email(), setupRequest.password());
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+        RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         cookieService.setAccessTokenCookie(request, response, accessToken);
-        cookieService.setRefreshTokenCookie(request, response, refreshToken.getToken());
+        cookieService.setRefreshTokenCookie(request, response, refreshToken.rawToken());
 
         return ResponseEntity.ok(Map.of("email", user.getEmail()));
     }

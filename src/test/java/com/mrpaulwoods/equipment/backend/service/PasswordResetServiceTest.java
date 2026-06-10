@@ -3,8 +3,10 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.entity.PasswordResetToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.PasswordResetTokenRepository;
+import com.mrpaulwoods.equipment.backend.util.TokenHasher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -55,8 +57,12 @@ class PasswordResetServiceTest {
         String token = passwordResetService.createResetToken(user);
 
         then(passwordResetTokenRepository).should().deleteByUser(user);
-        then(passwordResetTokenRepository).should().save(any(PasswordResetToken.class));
+        ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
+        then(passwordResetTokenRepository).should().save(captor.capture());
         assertThat(token).isNotBlank();
+        assertThat(captor.getValue().getToken())
+                .isNotEqualTo(token)
+                .isEqualTo(TokenHasher.sha256Hex(token));
     }
 
     @Test
@@ -73,11 +79,11 @@ class PasswordResetServiceTest {
     void resetPassword_withValidToken_encodesAndDeletesToken() {
         User user = sampleUser();
         PasswordResetToken token = new PasswordResetToken();
-        token.setToken("valid-token");
+        token.setToken(TokenHasher.sha256Hex("valid-token"));
         token.setUser(user);
         token.setExpiresAt(LocalDateTime.now().plusHours(1));
 
-        given(passwordResetTokenRepository.findByToken("valid-token")).willReturn(Optional.of(token));
+        given(passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex("valid-token"))).willReturn(Optional.of(token));
         given(passwordEncoder.encode("newpass")).willReturn("newhash");
 
         passwordResetService.resetPassword("valid-token", "newpass");
@@ -88,7 +94,7 @@ class PasswordResetServiceTest {
 
     @Test
     void resetPassword_withMissingToken_throwsBadRequest() {
-        given(passwordResetTokenRepository.findByToken("missing")).willReturn(Optional.empty());
+        given(passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex("missing"))).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> passwordResetService.resetPassword("missing", "newpass"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -101,11 +107,11 @@ class PasswordResetServiceTest {
     @Test
     void resetPassword_withExpiredToken_throwsBadRequest() {
         PasswordResetToken token = new PasswordResetToken();
-        token.setToken("expired-token");
+        token.setToken(TokenHasher.sha256Hex("expired-token"));
         token.setUser(sampleUser());
         token.setExpiresAt(LocalDateTime.now().minusMinutes(1));
 
-        given(passwordResetTokenRepository.findByToken("expired-token")).willReturn(Optional.of(token));
+        given(passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex("expired-token"))).willReturn(Optional.of(token));
 
         assertThatThrownBy(() -> passwordResetService.resetPassword("expired-token", "newpass"))
                 .isInstanceOf(ResponseStatusException.class)

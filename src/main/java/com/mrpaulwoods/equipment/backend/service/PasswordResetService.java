@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.entity.PasswordResetToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.PasswordResetTokenRepository;
+import com.mrpaulwoods.equipment.backend.util.TokenHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,7 +33,7 @@ public class PasswordResetService {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 
         PasswordResetToken resetToken = new PasswordResetToken();
-        resetToken.setToken(token);
+        resetToken.setToken(TokenHasher.sha256Hex(token));
         resetToken.setUser(user);
         resetToken.setExpiresAt(LocalDateTime.now().plusHours(1));
         passwordResetTokenRepository.save(resetToken);
@@ -42,7 +43,7 @@ public class PasswordResetService {
 
     @Transactional
     public void resetPassword(String token, String newPassword) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex(token))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"));
 
         if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {

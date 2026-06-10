@@ -9,16 +9,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +84,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
+        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -91,10 +92,10 @@ class SetupControllerTest {
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
-        rt.setToken(UUID.randomUUID().toString());
+        rt.setToken("hashed-token");
         rt.setUser(user);
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         String body = """
                 {"email": "admin@example.com", "password": "password123"}
@@ -115,7 +116,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
+        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -123,10 +124,10 @@ class SetupControllerTest {
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
-        rt.setToken(UUID.randomUUID().toString());
+        rt.setToken("hashed-token");
         rt.setUser(user);
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .secure(true)
@@ -162,7 +163,7 @@ class SetupControllerTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInternal("admin@example.com", "admin@example.com", "password123", Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"))).thenReturn(user);
+        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -170,10 +171,10 @@ class SetupControllerTest {
         when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
 
         RefreshToken rt = new RefreshToken();
-        rt.setToken(UUID.randomUUID().toString());
+        rt.setToken("hashed-token");
         rt.setUser(user);
         rt.setExpiresAt(LocalDateTime.now().plusDays(7));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -202,6 +203,20 @@ class SetupControllerTest {
         mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void setup_whenServiceDetectsConcurrentSetup_returns409() throws Exception {
+        when(userService.isSetupRequired()).thenReturn(true);
+        when(userService.createInitialAdmin("admin@example.com", "password123"))
+                .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed"));
+
+        mockMvc.perform(post("/api/v1/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "password123"}
+                                """))
                 .andExpect(status().isConflict());
     }
 
