@@ -8,15 +8,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 
+// Deliberately not @Transactional: SMTP sends are slow external I/O and must not
+// hold a DB connection. DashboardService does its reads in its own read-only transaction.
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class EmailService {
 
     private final JavaMailSender mailSender;

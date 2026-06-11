@@ -40,4 +40,8 @@ public class User {
 
     @Column(name = "token_version", nullable = false)
     private long tokenVersion = 0L;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 }

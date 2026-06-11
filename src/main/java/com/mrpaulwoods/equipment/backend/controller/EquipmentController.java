@@ -59,7 +59,8 @@ public class EquipmentController {
         byte[] json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(equipment);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        // Colon-free pattern: ISO_LOCAL_DATE_TIME produces ':' which is illegal in Windows filenames.
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
         headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"equipment-export-" + timestamp + ".json\"");
         return ResponseEntity.ok().headers(headers).body(json);
     }

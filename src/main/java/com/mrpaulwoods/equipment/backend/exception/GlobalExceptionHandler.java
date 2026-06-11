@@ -1,6 +1,7 @@
 package com.mrpaulwoods.equipment.backend.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +47,16 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetails.of(HttpStatus.BAD_REQUEST, "Validation failed", "Validation Error", request.getRequestURI());
         problem.setProperty("errors", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handleOptimisticLocking(OptimisticLockingFailureException ex,
+                                                                 jakarta.servlet.http.HttpServletRequest request) {
+        log.warn("Optimistic locking conflict: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.CONFLICT,
+                "The record was modified by another user. Reload and try again.",
+                "Concurrent Modification", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

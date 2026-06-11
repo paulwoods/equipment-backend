@@ -544,6 +544,7 @@ class UserServiceTest {
     private void mockAdvisoryLock() {
         Query query = org.mockito.Mockito.mock(Query.class);
         given(entityManager.createNativeQuery(org.mockito.ArgumentMatchers.contains("pg_advisory_xact_lock"))).willReturn(query);
+        given(query.setParameter(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any())).willReturn(query);
         given(query.getSingleResult()).willReturn(Boolean.TRUE);
     }
 

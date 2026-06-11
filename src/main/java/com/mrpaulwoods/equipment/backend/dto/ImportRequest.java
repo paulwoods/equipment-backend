@@ -1,7 +1,10 @@
 package com.mrpaulwoods.equipment.backend.dto;
 
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -11,7 +14,7 @@ public class ImportRequest {
 
     public record PerformImport(
             @Size(max = 36) String id,
-            LocalDate date,
+            @NotNull LocalDate date,
             @Size(max = 2000) String notes
     ) {
     }
@@ -22,8 +25,8 @@ public class ImportRequest {
             @Size(max = 2000) String description,
             @NotBlank @Size(max = 4000) String steps,
             @Size(max = 500) String requiredTools,
-            Integer intervalDays,
-            List<PerformImport> history
+            @NotNull @Min(1) Integer intervalDays,
+            List<@Valid PerformImport> history
     ) {
     }
 
@@ -36,8 +39,8 @@ public class ImportRequest {
             @Size(max = 255) String location,
             EquipmentStatus status,
             @Size(max = 2000) String description,
-            LocalDate purchaseDate,
-            List<ProcedureImport> procedures
+            @NotNull LocalDate purchaseDate,
+            List<@Valid ProcedureImport> procedures
     ) {
     }
 }

@@ -22,7 +22,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(@NonNull String email) throws UsernameNotFoundException {
         com.mrpaulwoods.equipment.backend.entity.User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        return toUserDetails(user);
+    }
 
+    public UserDetails toUserDetails(com.mrpaulwoods.equipment.backend.entity.User user) {
         List<SimpleGrantedAuthority> authorities = user.getUserRoles().stream()
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getName()))
                 .toList();

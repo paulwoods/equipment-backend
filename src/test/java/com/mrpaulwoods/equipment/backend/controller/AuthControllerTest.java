@@ -1,11 +1,14 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
-import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
+import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.filter.JwtAuthFilter;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
-import com.mrpaulwoods.equipment.backend.service.*;
+import com.mrpaulwoods.equipment.backend.service.AuthService;
+import com.mrpaulwoods.equipment.backend.service.CookieService;
+import com.mrpaulwoods.equipment.backend.service.JwtService;
+import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,24 +16,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,34 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTest {
 
     @Mock
-    private AuthenticationManager authenticationManager;
-
-    @Mock
-    private JwtService jwtService;
-
-    @Mock
-    private RefreshTokenService refreshTokenService;
-
-    @Mock
-    private UserService userService;
-
-    @Mock
-    private UserDetailsServiceImpl userDetailsService;
-
-    @Mock
-    private LoginRateLimiterService loginRateLimiter;
-
-    @Mock
-    private ForgotPasswordRateLimiterService forgotPasswordRateLimiter;
-
-    @Mock
-    private PasswordResetService passwordResetService;
-
-    @Mock
-    private EmailService emailService;
-
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    private AuthService authService;
 
     private AppProperties appProperties;
 
@@ -82,64 +53,24 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         appProperties = new AppProperties();
-        authController = new AuthController(
-                authenticationManager,
-                jwtService,
-                refreshTokenService,
-                userDetailsService,
-                userService,
-                new CookieService(appProperties),
-                loginRateLimiter,
-                forgotPasswordRateLimiter,
-                passwordResetService,
-                emailService,
-                passwordEncoder
-        );
-        lenient().when(loginRateLimiter.isBlocked(anyString(), anyString())).thenReturn(false);
-        lenient().when(forgotPasswordRateLimiter.isBlocked(anyString())).thenReturn(false);
+        authController = new AuthController(authService, new CookieService(appProperties));
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 
-    private UserDetails userDetails(String email) {
-        return new org.springframework.security.core.userdetails.User(
-                email, "password", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-    }
-
-    private User appUser(String email) {
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setEmail(email);
-        return user;
-    }
-
-    private RefreshTokenService.IssuedRefreshToken refreshToken(User user) {
-        RefreshToken rt = new RefreshToken();
-        rt.setToken("hashed-token");
-        rt.setUser(user);
-        rt.setExpiresAt(Instant.now().plus(Duration.ofDays(7)));
-        return new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt);
+    private AuthService.IssuedTokens issuedTokens(String email) {
+        return new AuthService.IssuedTokens(email, "access-token", "raw-refresh");
     }
 
     @Test
     void login_withValidCredentials_returns200AndSetsEmail() throws Exception {
         String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
-
-        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
-
-        String body = """
-                {"email": "admin@example.com", "password": "password123"}
-                """;
+        when(authService.login(eq(email), eq("password123"), anyString())).thenReturn(issuedTokens(email));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+                        .content("""
+                                {"email": "admin@example.com", "password": "password123"}
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));
     }
@@ -147,14 +78,7 @@ class AuthControllerTest {
     @Test
     void login_overHttp_setsInsecureCookiesWithLaxAndHttpOnly() throws Exception {
         String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(authService.login(eq(email), anyString(), anyString())).thenReturn(issuedTokens(email));
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -186,16 +110,8 @@ class AuthControllerTest {
     @Test
     void login_withCookieSecureOverrideTrue_forcesSecureOverHttp() throws Exception {
         appProperties.setCookieSecure(true);
-
         String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(authService.login(eq(email), anyString(), anyString())).thenReturn(issuedTokens(email));
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -215,14 +131,7 @@ class AuthControllerTest {
     @Test
     void login_overHttps_setsSecureCookies() throws Exception {
         String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
+        when(authService.login(eq(email), anyString(), anyString())).thenReturn(issuedTokens(email));
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .secure(true)
@@ -243,10 +152,35 @@ class AuthControllerTest {
     }
 
     @Test
+    void login_withInvalidCredentials_returns401() throws Exception {
+        when(authService.login(eq("admin@example.com"), anyString(), anyString()))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "wrongpass"}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_whenRateLimited_returns429() throws Exception {
+        when(authService.login(eq("admin@example.com"), anyString(), anyString()))
+                .thenThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many login attempts"));
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "admin@example.com", "password": "whatever12"}
+                                """))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void logout_clearsBothCookiesWithMaxAgeZero() throws Exception {
         Authentication auth = mock(Authentication.class);
         when(auth.getName()).thenReturn("admin@example.com");
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.empty());
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/logout").principal(auth).secure(true))
                 .andExpect(status().isOk())
@@ -264,20 +198,8 @@ class AuthControllerTest {
         assertThat(accessHeader).contains("Path=/");
         String refreshHeader = setCookies.stream().filter(h -> h.startsWith("refresh_token=")).findFirst().orElseThrow();
         assertThat(refreshHeader).contains("Path=/api/v1/auth");
-    }
 
-    @Test
-    void logout_withAuthenticatedPrincipal_revokesRefreshTokensAndBumpsTokenVersion() throws Exception {
-        Authentication auth = mock(Authentication.class);
-        when(auth.getName()).thenReturn("admin@example.com");
-        User user = appUser("admin@example.com");
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
-
-        mockMvc.perform(post("/api/v1/auth/logout").principal(auth))
-                .andExpect(status().isOk());
-
-        verify(refreshTokenService).deleteByUser(user);
-        verify(userService).bumpTokenVersion(user);
+        verify(authService).logout("admin@example.com");
     }
 
     @Test
@@ -288,14 +210,15 @@ class AuthControllerTest {
 
         List<String> setCookies = result.getResponse().getHeaders("Set-Cookie");
         assertThat(setCookies).hasSize(2);
-        verify(refreshTokenService, never()).deleteByUser(any());
-        verify(userService, never()).bumpTokenVersion(any());
+        verify(authService).logout(null);
     }
 
     @Test
-    void logout_withAccessTokenCookie_runsJwtFilterAndRevokesTokens() throws Exception {
+    void logout_withAccessTokenCookie_runsJwtFilterAndDelegatesLogout() throws Exception {
         // Exercises the real JwtAuthFilter on /logout: a regression that re-adds the
         // path to shouldNotFilter would leave Authentication null and fail this test.
+        JwtService jwtService = mock(JwtService.class);
+        UserDetailsServiceImpl userDetailsService = mock(UserDetailsServiceImpl.class);
         UserRepository userRepository = mock(UserRepository.class);
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(
                 jwtService, userDetailsService, new CookieService(appProperties), userRepository);
@@ -306,14 +229,15 @@ class AuthControllerTest {
                 .build();
 
         String email = "admin@example.com";
-        User user = appUser(email);
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail(email);
         user.setTokenVersion(5L);
-        when(jwtService.isTokenValid("valid-jwt")).thenReturn(true);
-        when(jwtService.extractEmail("valid-jwt")).thenReturn(email);
-        when(jwtService.extractTokenVersion("valid-jwt")).thenReturn(5L);
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                email, "password", List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        when(jwtService.validate("valid-jwt")).thenReturn(Optional.of(new JwtService.ValidToken(email, 5L)));
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails(email));
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
+        when(userDetailsService.toUserDetails(user)).thenReturn(userDetails);
 
         try {
             filteredMockMvc.perform(post("/api/v1/auth/logout")
@@ -323,20 +247,12 @@ class AuthControllerTest {
             SecurityContextHolder.clearContext();
         }
 
-        verify(refreshTokenService).deleteByUser(user);
-        verify(userService).bumpTokenVersion(user);
+        verify(authService).logout(email);
     }
 
     @Test
     void refresh_overHttps_setsSecureCookies() throws Exception {
-        String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rotated = refreshToken(user);
-
-        when(refreshTokenService.validateAndRotate("old-refresh")).thenReturn(Optional.of(rotated));
-        when(userDetailsService.loadUserByUsername(email)).thenReturn(ud);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("new-access");
+        when(authService.refresh("old-refresh")).thenReturn(issuedTokens("admin@example.com"));
 
         MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
                         .secure(true)
@@ -355,93 +271,11 @@ class AuthControllerTest {
 
     @Test
     void refresh_withoutCookie_returns401() throws Exception {
+        when(authService.refresh(null))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No refresh token"));
+
         mockMvc.perform(post("/api/v1/auth/refresh"))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void login_withInvalidCredentials_returns401() throws Exception {
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(appUser("admin@example.com")));
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
-
-        String body = """
-                {"email": "admin@example.com", "password": "wrongpass"}
-                """;
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void login_whenUserNotFound_returns401AndPerformsDummyBcryptToEqualizeTiming() throws Exception {
-        when(userService.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email": "ghost@example.com", "password": "anypass12"}
-                                """))
-                .andExpect(status().isUnauthorized());
-
-        verify(passwordEncoder).matches(eq("anypass12"), anyString());
-        verify(authenticationManager, never()).authenticate(any());
-        verify(loginRateLimiter).recordFailure(anyString(), eq("ghost@example.com"));
-    }
-
-    @Test
-    void login_whenRateLimited_returns429AndSkipsAuthentication() throws Exception {
-        when(loginRateLimiter.isBlocked(anyString(), eq("admin@example.com"))).thenReturn(true);
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email": "admin@example.com", "password": "whatever12"}
-                                """))
-                .andExpect(status().isTooManyRequests());
-
-        verify(authenticationManager, never()).authenticate(any());
-        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
-    }
-
-    @Test
-    void login_withInvalidCredentials_recordsFailure() throws Exception {
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(appUser("admin@example.com")));
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email": "admin@example.com", "password": "wrongpass"}
-                                """))
-                .andExpect(status().isUnauthorized());
-
-        verify(loginRateLimiter).recordFailure(anyString(), eq("admin@example.com"));
-        verify(loginRateLimiter, never()).recordSuccess(anyString(), anyString());
-    }
-
-    @Test
-    void login_withValidCredentials_recordsSuccess() throws Exception {
-        String email = "admin@example.com";
-        UserDetails ud = userDetails(email);
-        User user = appUser(email);
-        RefreshTokenService.IssuedRefreshToken rt = refreshToken(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
-        when(authenticationManager.authenticate(any())).thenReturn(auth);
-        when(jwtService.generateToken(eq(ud), anyLong())).thenReturn("access-token");
-        when(userService.findByEmail(email)).thenReturn(Optional.of(user));
-        when(refreshTokenService.createRefreshToken(user)).thenReturn(rt);
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email": "admin@example.com", "password": "password123"}
-                                """))
-                .andExpect(status().isOk());
-
-        verify(loginRateLimiter).recordSuccess(anyString(), eq(email));
-        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
     }
 
     @Test
@@ -450,10 +284,9 @@ class AuthControllerTest {
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("admin@example.com");
 
-        User user = new User();
-        user.setId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        user.setEmail("admin@example.com");
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        when(authService.currentUser("admin@example.com"))
+                .thenReturn(new UserResponse(id, "Admin", "admin@example.com", Set.of()));
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isOk())
@@ -463,18 +296,18 @@ class AuthControllerTest {
     }
 
     @Test
-    void me_whenNullAuthentication_returns200() throws Exception {
+    void me_whenNullAuthentication_returns401() throws Exception {
         mockMvc.perform(get("/api/v1/auth/me"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void me_whenNotAuthenticated_returns200() throws Exception {
+    void me_whenNotAuthenticated_returns401() throws Exception {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -482,18 +315,15 @@ class AuthControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.isAuthenticated()).thenReturn(true);
         when(auth.getName()).thenReturn("admin@example.com");
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.empty());
+        when(authService.currentUser("admin@example.com"))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         mockMvc.perform(get("/api/v1/auth/me").principal(auth))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void forgotPassword_withExistingEmail_sendsEmailAndReturns200() throws Exception {
-        User user = appUser("admin@example.com");
-        when(userService.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
-        when(passwordResetService.createResetToken(user)).thenReturn("reset-token");
-
+    void forgotPassword_returns200WithGenericMessage() throws Exception {
         mockMvc.perform(post("/api/v1/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -502,27 +332,13 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("If the email exists in our system, you will receive reset instructions shortly."));
 
-        verify(emailService).sendPasswordResetEmail("admin@example.com", "reset-token");
-    }
-
-    @Test
-    void forgotPassword_withNonExistingEmail_returns200WithoutSendingEmail() throws Exception {
-        when(userService.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
-
-        mockMvc.perform(post("/api/v1/auth/forgot-password")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email": "unknown@example.com"}
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("If the email exists in our system, you will receive reset instructions shortly."));
-
-        verify(emailService, never()).sendPasswordResetEmail(anyString(), anyString());
+        verify(authService).forgotPassword(eq("admin@example.com"), anyString());
     }
 
     @Test
     void forgotPassword_whenRateLimited_returns429() throws Exception {
-        when(forgotPasswordRateLimiter.isBlocked(anyString())).thenReturn(true);
+        doThrow(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many password reset attempts"))
+                .when(authService).forgotPassword(eq("admin@example.com"), anyString());
 
         mockMvc.perform(post("/api/v1/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -542,13 +358,13 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Password updated"));
 
-        verify(passwordResetService).resetPassword("valid-token", "newpassword123");
+        verify(authService).resetPassword("valid-token", "newpassword123");
     }
 
     @Test
     void resetPassword_withInvalidToken_returns400() throws Exception {
         doThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"))
-                .when(passwordResetService).resetPassword(eq("invalid-token"), anyString());
+                .when(authService).resetPassword(eq("invalid-token"), anyString());
 
         mockMvc.perform(post("/api/v1/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)

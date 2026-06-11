@@ -2,7 +2,6 @@ package com.mrpaulwoods.equipment.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,7 +14,6 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class Procedure extends UuidEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -23,6 +21,7 @@ public class Procedure extends UuidEntity {
     @JsonIgnore
     private Equipment equipment;
 
+    @Column(nullable = false)
     private String name;
 
     @Column(columnDefinition = "TEXT")
@@ -34,7 +33,12 @@ public class Procedure extends UuidEntity {
     @Column(columnDefinition = "TEXT")
     private String requiredTools;
 
+    @Column(nullable = false)
     private int intervalDays;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @OneToMany(mappedBy = "procedure", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Perform> history = new ArrayList<>();

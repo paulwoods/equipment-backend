@@ -8,6 +8,7 @@ import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.util.List;
 public class ImportService {
 
     private final EquipmentRepository equipmentRepository;
+    private final Validator validator;
 
     public ImportResult importEquipment(List<ImportRequest.EquipmentImport> items) {
         validate(items);
@@ -73,35 +75,19 @@ public class ImportService {
         return new ImportResult(equipmentList.size(), procedureCount, historyCount);
     }
 
+    // Collects every violation across the whole payload so a user fixing a large
+    // import sees all errors at once instead of one per attempt.
     private void validate(List<ImportRequest.EquipmentImport> items) {
+        List<String> errors = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            ImportRequest.EquipmentImport item = items.get(i);
-
-            if (item.manufacturer() == null || item.manufacturer().isBlank()) {
-                throw new ImportEquipmentException("Equipment[" + i + "]: manufacturer is required");
-            }
-            if (item.modelNumber() == null || item.modelNumber().isBlank()) {
-                throw new ImportEquipmentException("Equipment[" + i + "]: modelNumber is required");
-            }
-            if (item.purchaseDate() == null) {
-                throw new ImportEquipmentException("Equipment[" + i + "]: purchaseDate is required");
-            }
-
-            if (item.procedures() != null) {
-                for (int j = 0; j < item.procedures().size(); j++) {
-                    ImportRequest.ProcedureImport proc = item.procedures().get(j);
-
-                    if (proc.name() == null || proc.name().isBlank()) {
-                        throw new ImportEquipmentException("Equipment[" + i + "], Procedure[" + j + "]: name is required");
-                    }
-                    if (proc.steps() == null || proc.steps().isBlank()) {
-                        throw new ImportEquipmentException("Equipment[" + i + "], Procedure[" + j + "]: steps is required");
-                    }
-                    if (proc.intervalDays() == null || proc.intervalDays() < 1) {
-                        throw new ImportEquipmentException("Equipment[" + i + "], Procedure[" + j + "]: intervalDays must be at least 1");
-                    }
-                }
-            }
+            int index = i;
+            validator.validate(items.get(i)).stream()
+                    .map(v -> "Equipment[" + index + "]." + v.getPropertyPath() + ": " + v.getMessage())
+                    .sorted()
+                    .forEach(errors::add);
+        }
+        if (!errors.isEmpty()) {
+            throw new ImportEquipmentException(String.join("; ", errors));
         }
     }
 }

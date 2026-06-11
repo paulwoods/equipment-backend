@@ -13,7 +13,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -45,28 +44,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = cookieService.getCookieValue(request, "access_token");
 
-        if (token != null && jwtService.isTokenValid(token)) {
-            String email = jwtService.extractEmail(token);
-            Long tokenVersion = jwtService.extractTokenVersion(token);
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                try {
-                    long currentTokenVersion = userRepository.findByEmail(email)
-                            .map(com.mrpaulwoods.equipment.backend.entity.User::getTokenVersion)
-                            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
-                    if (tokenVersion == null || tokenVersion != currentTokenVersion) {
-                        SecurityContextHolder.clearContext();
-                    } else {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities()
-                        );
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                    }
-                } catch (UsernameNotFoundException e) {
-                    SecurityContextHolder.clearContext();
-                }
-            }
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            jwtService.validate(token).ifPresent(validToken ->
+                    userRepository.findByEmail(validToken.email()).ifPresent(user -> {
+                        if (validToken.tokenVersion() != null && validToken.tokenVersion() == user.getTokenVersion()) {
+                            UserDetails userDetails = userDetailsService.toUserDetails(user);
+                            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities()
+                            );
+                            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                            SecurityContextHolder.getContext().setAuthentication(authToken);
+                        }
+                    })
+            );
         }
 
         filterChain.doFilter(request, response);

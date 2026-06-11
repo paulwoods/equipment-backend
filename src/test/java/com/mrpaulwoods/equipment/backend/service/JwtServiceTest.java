@@ -43,30 +43,24 @@ class JwtServiceTest {
     }
 
     @Test
-    void extractEmail_returnsCorrectEmail() {
+    void validate_withValidToken_returnsEmailAndTokenVersion() {
         UserDetails ud = userDetails("user@example.com", "ROLE_USER");
-        String token = jwtService.generateToken(ud, 0L);
-        assertThat(jwtService.extractEmail(token)).isEqualTo("user@example.com");
+        String token = jwtService.generateToken(ud, 5L);
+        assertThat(jwtService.validate(token))
+                .hasValue(new JwtService.ValidToken("user@example.com", 5L));
     }
 
     @Test
-    void isTokenValid_withValidToken_returnsTrue() {
-        UserDetails ud = userDetails("user@example.com", "ROLE_ADMIN");
-        String token = jwtService.generateToken(ud, 0L);
-        assertThat(jwtService.isTokenValid(token)).isTrue();
+    void validate_withGarbageToken_returnsEmpty() {
+        assertThat(jwtService.validate("not.a.token")).isEmpty();
     }
 
     @Test
-    void isTokenValid_withGarbageToken_returnsFalse() {
-        assertThat(jwtService.isTokenValid("not.a.token")).isFalse();
-    }
-
-    @Test
-    void isTokenValid_withExpiredToken_returnsFalse() {
+    void validate_withExpiredToken_returnsEmpty() {
         when(appProperties.getJwtExpirationMs()).thenReturn(-1000L);
         jwtService = new JwtService(appProperties);
         UserDetails ud = userDetails("user@example.com", "ROLE_USER");
         String token = jwtService.generateToken(ud, 0L);
-        assertThat(jwtService.isTokenValid(token)).isFalse();
+        assertThat(jwtService.validate(token)).isEmpty();
     }
 }

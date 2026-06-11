@@ -2,6 +2,7 @@ package com.mrpaulwoods.equipment.backend.config;
 
 import com.mrpaulwoods.equipment.backend.filter.JwtAuthFilter;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,14 +52,17 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/refresh", "/api/v1/auth/me", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
+                        // Spring forwards filter-level failures to /error; without this the ERROR
+                        // dispatch would be denied and clients would see an empty 403 instead.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/refresh", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/setup/**").permitAll()
                         .requestMatchers("/api/v1/**").authenticated()
-                        // Must stay above anyRequest().permitAll(): rules are evaluated in order,
-                        // so moving this below the catch-all would expose the API docs anonymously.
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").authenticated()
-                        .anyRequest().permitAll()
+                        // Deny-by-default: the backend serves no static content, so anything not
+                        // matched above fails closed even if a rule is later mis-ordered.
+                        .anyRequest().denyAll()
                 )
                 .authenticationProvider(daoAuthenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

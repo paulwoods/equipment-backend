@@ -13,6 +13,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,24 +35,23 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractEmail(String token) {
-        return parseClaims(token).getSubject();
+    /**
+     * The claims of a successfully verified, unexpired token.
+     * {@code tokenVersion} is null when the token predates the "tv" claim.
+     */
+    public record ValidToken(String email, Long tokenVersion) {
     }
 
-    public Long extractTokenVersion(String token) {
-        Object tv = parseClaims(token).get("tv");
-        if (tv instanceof Number n) {
-            return n.longValue();
-        }
-        return null;
-    }
-
-    public boolean isTokenValid(String token) {
+    public Optional<ValidToken> validate(String token) {
         try {
             Claims claims = parseClaims(token);
-            return claims.getExpiration().after(new Date());
+            if (!claims.getExpiration().after(new Date())) {
+                return Optional.empty();
+            }
+            Long tokenVersion = claims.get("tv") instanceof Number n ? n.longValue() : null;
+            return Optional.of(new ValidToken(claims.getSubject(), tokenVersion));
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return Optional.empty();
         }
     }
 

@@ -2,7 +2,6 @@ package com.mrpaulwoods.equipment.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,7 +13,6 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class Perform extends UuidEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -22,6 +20,7 @@ public class Perform extends UuidEntity {
     @JsonIgnore
     private Procedure procedure;
 
+    @Column(nullable = false)
     private LocalDate date;
 
     @Column(columnDefinition = "TEXT")

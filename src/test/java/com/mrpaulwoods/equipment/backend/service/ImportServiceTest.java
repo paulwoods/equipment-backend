@@ -6,10 +6,11 @@ import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
+import jakarta.validation.Validation;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,8 +29,15 @@ class ImportServiceTest {
     @Mock
     private EquipmentRepository equipmentRepository;
 
-    @InjectMocks
     private ImportService importService;
+
+    @BeforeEach
+    void setUp() {
+        importService = new ImportService(
+                equipmentRepository,
+                Validation.buildDefaultValidatorFactory().getValidator()
+        );
+    }
 
     private ImportRequest.EquipmentImport validEquipment() {
         return new ImportRequest.EquipmentImport(
@@ -150,7 +158,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0]: manufacturer is required");
+                .hasMessageContaining("Equipment[0].manufacturer: must not be blank");
     }
 
     @Test
@@ -161,7 +169,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0]: manufacturer is required");
+                .hasMessageContaining("Equipment[0].manufacturer: must not be blank");
     }
 
     @Test
@@ -172,7 +180,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0]: modelNumber is required");
+                .hasMessageContaining("Equipment[0].modelNumber: must not be blank");
     }
 
     @Test
@@ -183,7 +191,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0]: purchaseDate is required");
+                .hasMessageContaining("Equipment[0].purchaseDate: must not be null");
     }
 
     @Test
@@ -196,7 +204,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0], Procedure[0]: name is required");
+                .hasMessageContaining("Equipment[0].procedures[0].name: must not be blank");
     }
 
     @Test
@@ -209,7 +217,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0], Procedure[0]: steps is required");
+                .hasMessageContaining("Equipment[0].procedures[0].steps: must not be blank");
     }
 
     @Test
@@ -222,7 +230,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0], Procedure[0]: intervalDays must be at least 1");
+                .hasMessageContaining("Equipment[0].procedures[0].intervalDays: must not be null");
     }
 
     @Test
@@ -235,7 +243,7 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[0], Procedure[0]: intervalDays must be at least 1");
+                .hasMessageContaining("Equipment[0].procedures[0].intervalDays: must be greater than or equal to 1");
     }
 
     @Test
@@ -247,6 +255,22 @@ class ImportServiceTest {
 
         assertThatThrownBy(() -> importService.importEquipment(List.of(valid, invalid)))
                 .isInstanceOf(ImportEquipmentException.class)
-                .hasMessageContaining("Equipment[1]: manufacturer is required");
+                .hasMessageContaining("Equipment[1].manufacturer: must not be blank");
+    }
+
+    @Test
+    void validate_collectsAllErrorsAcrossItemsInOneException() {
+        ImportRequest.EquipmentImport first = new ImportRequest.EquipmentImport(
+                "e1", null, "G15", null, null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
+        ImportRequest.EquipmentImport second = new ImportRequest.EquipmentImport(
+                "e2", "Dell", null, null, null, null,
+                EquipmentStatus.ACTIVE, null, null, List.of());
+
+        assertThatThrownBy(() -> importService.importEquipment(List.of(first, second)))
+                .isInstanceOf(ImportEquipmentException.class)
+                .hasMessageContaining("Equipment[0].manufacturer: must not be blank")
+                .hasMessageContaining("Equipment[1].modelNumber: must not be blank")
+                .hasMessageContaining("Equipment[1].purchaseDate: must not be null");
     }
 }

@@ -41,7 +41,8 @@ public class UserService {
     public User createInitialAdmin(String email, String password) {
         // Serialize concurrent setup attempts: the advisory lock is held until the
         // transaction ends, so the count re-check below is authoritative.
-        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(" + SETUP_ADVISORY_LOCK_KEY + ")")
+        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(?1)")
+                .setParameter(1, SETUP_ADVISORY_LOCK_KEY)
                 .getSingleResult();
         if (userRepository.count() > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
@@ -195,7 +196,10 @@ public class UserService {
 
     private void updateRoles(User user, Set<String> roleNames) {
         user.getUserRoles().clear();
-        userRoleRepository.deleteByUserId(user.getId());
+        // Flush the orphan deletes before re-adding: Hibernate orders inserts before
+        // deletes within a flush, which would violate the (user_id, role_id) unique
+        // constraint when a role is kept across the update.
+        userRepository.saveAndFlush(user);
         assignRoles(user, roleNames);
     }
 
