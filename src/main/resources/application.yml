@@ -57,6 +57,7 @@ app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
   cookie-secure: ${APP_COOKIE_SECURE:true}
   jwt-expiration-ms: ${APP_JWT_EXPIRATION_MS:3600000}
+  refresh-token-days: ${APP_REFRESH_TOKEN_DAYS:7}
   login-max-attempts: ${APP_LOGIN_MAX_ATTEMPTS:5}
   login-lockout-duration-ms: ${APP_LOGIN_LOCKOUT_DURATION_MS:900000}
   forgot-password-max-attempts: ${APP_FORGOT_PASSWORD_MAX_ATTEMPTS:3}

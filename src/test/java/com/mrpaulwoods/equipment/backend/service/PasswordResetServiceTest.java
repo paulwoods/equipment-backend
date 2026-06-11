@@ -14,7 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -81,7 +82,7 @@ class PasswordResetServiceTest {
         PasswordResetToken token = new PasswordResetToken();
         token.setToken(TokenHasher.sha256Hex("valid-token"));
         token.setUser(user);
-        token.setExpiresAt(LocalDateTime.now().plusHours(1));
+        token.setExpiresAt(Instant.now().plus(Duration.ofHours(1)));
 
         given(passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex("valid-token"))).willReturn(Optional.of(token));
         given(passwordEncoder.encode("newpass")).willReturn("newhash");
@@ -109,7 +110,7 @@ class PasswordResetServiceTest {
         PasswordResetToken token = new PasswordResetToken();
         token.setToken(TokenHasher.sha256Hex("expired-token"));
         token.setUser(sampleUser());
-        token.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        token.setExpiresAt(Instant.now().minus(Duration.ofMinutes(1)));
 
         given(passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex("expired-token"))).willReturn(Optional.of(token));
 

@@ -13,6 +13,7 @@ public class AppProperties {
     private String frontendUrl;
     private String emailRecipient;
     private Boolean cookieSecure;
+    private int refreshTokenDays = 7;
     private int loginMaxAttempts = 5;
     private long loginLockoutDurationMs = 15L * 60L * 1000L;
     private int forgotPasswordMaxAttempts = 3;

@@ -1,8 +1,8 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
+import com.mrpaulwoods.equipment.backend.dto.ExportResponse;
 import com.mrpaulwoods.equipment.backend.dto.ImportResult;
-import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.exception.NotFoundException;
@@ -69,15 +69,10 @@ class EquipmentControllerTest {
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
     }
 
-    private Equipment sampleEquipmentEntity() {
-        Equipment e = new Equipment();
-        e.setId(EQ_ID);
-        e.setManufacturer("Acme");
-        e.setModelNumber("X100");
-        e.setSerialNumber("SN-001");
-        e.setStatus(EquipmentStatus.ACTIVE);
-        e.setPurchaseDate(LocalDate.of(2024, 1, 15));
-        return e;
+    private ExportResponse.EquipmentExport sampleEquipmentExport() {
+        return new ExportResponse.EquipmentExport(
+                EQ_ID.toString(), "Acme", "X100", "SN-001", null, null,
+                EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15), List.of());
     }
 
     @Test
@@ -238,7 +233,7 @@ class EquipmentControllerTest {
 
     @Test
     void exportEquipment_returnsJsonFile() throws Exception {
-        when(exportService.exportAll()).thenReturn(List.of(sampleEquipmentEntity()));
+        when(exportService.exportAll()).thenReturn(List.of(sampleEquipmentExport()));
 
         mockMvc.perform(get("/api/v1/equipment/export"))
                 .andExpect(status().isOk())

@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Arrays;
 
 @Service
@@ -20,11 +21,14 @@ public class CookieService {
     }
 
     public void setAccessTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
-        response.addHeader(HttpHeaders.SET_COOKIE, buildCookie("access_token", token, "/", 3600, request));
+        // Cookie lifetime tracks the JWT lifetime so the cookie never outlives (or kills) the token.
+        long maxAge = appProperties.getJwtExpirationMs() / 1000;
+        response.addHeader(HttpHeaders.SET_COOKIE, buildCookie("access_token", token, "/", maxAge, request));
     }
 
     public void setRefreshTokenCookie(HttpServletRequest request, HttpServletResponse response, String token) {
-        response.addHeader(HttpHeaders.SET_COOKIE, buildCookie("refresh_token", token, "/api/v1/auth", 7 * 24 * 3600, request));
+        long maxAge = Duration.ofDays(appProperties.getRefreshTokenDays()).toSeconds();
+        response.addHeader(HttpHeaders.SET_COOKIE, buildCookie("refresh_token", token, "/api/v1/auth", maxAge, request));
     }
 
     public void clearCookie(HttpServletRequest request, HttpServletResponse response, String name, String path) {
@@ -41,7 +45,7 @@ public class CookieService {
                 .orElse(null);
     }
 
-    private String buildCookie(String name, String value, String path, int maxAge, HttpServletRequest request) {
+    private String buildCookie(String name, String value, String path, long maxAge, HttpServletRequest request) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(isSecure(request))

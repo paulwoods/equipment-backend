@@ -12,7 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 
 @Service
@@ -35,7 +36,7 @@ public class PasswordResetService {
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.setToken(TokenHasher.sha256Hex(token));
         resetToken.setUser(user);
-        resetToken.setExpiresAt(LocalDateTime.now().plusHours(1));
+        resetToken.setExpiresAt(Instant.now().plus(Duration.ofHours(1)));
         passwordResetTokenRepository.save(resetToken);
 
         return token;
@@ -46,7 +47,7 @@ public class PasswordResetService {
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(TokenHasher.sha256Hex(token))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token"));
 
-        if (resetToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (resetToken.getExpiresAt().isBefore(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired token");
         }
 

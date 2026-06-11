@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.service;
 
+import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.RefreshTokenRepository;
@@ -8,7 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,9 +18,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RefreshTokenService {
 
-    private static final int REFRESH_TOKEN_DAYS = 7;
-
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AppProperties appProperties;
 
     /**
      * Pairs the raw token value (sent to the client, never persisted) with the
@@ -33,14 +34,14 @@ public class RefreshTokenService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(TokenHasher.sha256Hex(rawToken));
         refreshToken.setUser(user);
-        refreshToken.setExpiresAt(LocalDateTime.now().plusDays(REFRESH_TOKEN_DAYS));
+        refreshToken.setExpiresAt(Instant.now().plus(Duration.ofDays(appProperties.getRefreshTokenDays())));
         return new IssuedRefreshToken(rawToken, refreshTokenRepository.save(refreshToken));
     }
 
     @Transactional
     public Optional<IssuedRefreshToken> validateAndRotate(String rawToken) {
         return refreshTokenRepository.findByToken(TokenHasher.sha256Hex(rawToken))
-                .filter(rt -> rt.getExpiresAt().isAfter(LocalDateTime.now()))
+                .filter(rt -> rt.getExpiresAt().isAfter(Instant.now()))
                 .map(rt -> {
                     refreshTokenRepository.delete(rt);
                     return createRefreshToken(rt.getUser());

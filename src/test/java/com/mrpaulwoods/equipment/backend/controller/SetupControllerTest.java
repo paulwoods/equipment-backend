@@ -18,7 +18,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,7 +47,6 @@ class SetupControllerTest {
     @Mock
     private UserDetailsServiceImpl userDetailsService;
 
-    @Mock
     private AppProperties appProperties;
 
     private SetupController setupController;
@@ -55,6 +55,7 @@ class SetupControllerTest {
 
     @BeforeEach
     void setUp() {
+        appProperties = new AppProperties();
         setupController = new SetupController(userService, jwtService, refreshTokenService, userDetailsService, new CookieService(appProperties));
         mockMvc = MockMvcBuilders.standaloneSetup(setupController).build();
     }
@@ -94,7 +95,7 @@ class SetupControllerTest {
         RefreshToken rt = new RefreshToken();
         rt.setToken("hashed-token");
         rt.setUser(user);
-        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        rt.setExpiresAt(Instant.now().plus(Duration.ofDays(7)));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         String body = """
@@ -110,7 +111,7 @@ class SetupControllerTest {
 
     @Test
     void setup_overHttps_setsSecureHardenedCookies() throws Exception {
-        when(appProperties.getCookieSecure()).thenReturn(true);
+        appProperties.setCookieSecure(true);
         when(userService.isSetupRequired()).thenReturn(true);
 
         User user = new User();
@@ -126,7 +127,7 @@ class SetupControllerTest {
         RefreshToken rt = new RefreshToken();
         rt.setToken("hashed-token");
         rt.setUser(user);
-        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        rt.setExpiresAt(Instant.now().plus(Duration.ofDays(7)));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         MvcResult result = mockMvc.perform(post("/api/v1/setup")
@@ -173,7 +174,7 @@ class SetupControllerTest {
         RefreshToken rt = new RefreshToken();
         rt.setToken("hashed-token");
         rt.setUser(user);
-        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        rt.setExpiresAt(Instant.now().plus(Duration.ofDays(7)));
         when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         MvcResult result = mockMvc.perform(post("/api/v1/setup")

@@ -27,7 +27,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -115,7 +116,7 @@ class AuthControllerTest {
         RefreshToken rt = new RefreshToken();
         rt.setToken("hashed-token");
         rt.setUser(user);
-        rt.setExpiresAt(LocalDateTime.now().plusDays(7));
+        rt.setExpiresAt(Instant.now().plus(Duration.ofDays(7)));
         return new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt);
     }
 
