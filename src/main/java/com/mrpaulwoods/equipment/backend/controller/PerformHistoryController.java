@@ -24,7 +24,7 @@ public class PerformHistoryController {
     private final PerformHistoryService performHistoryService;
 
     @Operation(summary = "List all perform records for a procedure")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @GetMapping
     public ResponseEntity<List<PerformResponse>> getHistory(@PathVariable UUID equipmentId,
                                                                 @PathVariable UUID procedureId) {
@@ -32,7 +32,7 @@ public class PerformHistoryController {
     }
 
     @Operation(summary = "Record a new maintenance performance entry")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<PerformResponse> record(@PathVariable UUID equipmentId,
                                                         @PathVariable UUID procedureId,
