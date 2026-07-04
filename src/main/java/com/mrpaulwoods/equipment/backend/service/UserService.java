@@ -7,7 +7,6 @@ import com.mrpaulwoods.equipment.backend.entity.UserRole;
 import com.mrpaulwoods.equipment.backend.repository.RoleRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.repository.UserRoleRepository;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,27 +27,10 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private static final Set<String> ADMIN_MANAGEABLE_ROLES = Set.of("USER", "EDIT", "ADMIN");
-    // Arbitrary application-wide key for the Postgres advisory lock guarding first-run setup.
-    private static final long SETUP_ADVISORY_LOCK_KEY = 4_242_424_242L;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserRoleRepository userRoleRepository;
     private final RefreshTokenService refreshTokenService;
-    private final EntityManager entityManager;
-
-    @Transactional
-    public User createInitialAdmin(String email, String password) {
-        // Serialize concurrent setup attempts: the advisory lock is held until the
-        // transaction ends, so the count re-check below is authoritative.
-        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(?1)")
-                .setParameter(1, SETUP_ADVISORY_LOCK_KEY)
-                .getSingleResult();
-        if (userRepository.count() > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
-        }
-        return createInternal(email, email, password, Set.of("SYSTEM_ADMIN", "ADMIN", "EDIT", "USER"));
-    }
 
     @Transactional
     public User createInternal(String name, String email, String password, Set<String> roleNames) {
@@ -76,7 +58,7 @@ public class UserService {
     public UserResponse create(UserRequest request, Set<String> callerRoleNames) {
         validateRoleNames(request.roles());
         for (String roleName : request.roles()) {
-            assertCallerCanManageRole(callerRoleNames, roleName);
+            RoleTier.assertCallerCanManageRole(callerRoleNames, roleName);
         }
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw emailInUse();
@@ -96,10 +78,10 @@ public class UserService {
 
         validateRoleNames(request.roles());
         for (String existingRole : getRoleNames(user)) {
-            assertCallerCanManageRole(callerRoleNames, existingRole);
+            RoleTier.assertCallerCanManageRole(callerRoleNames, existingRole);
         }
         for (String requestedRole : request.roles()) {
-            assertCallerCanManageRole(callerRoleNames, requestedRole);
+            RoleTier.assertCallerCanManageRole(callerRoleNames, requestedRole);
         }
 
         if (id.equals(currentUserId) && !request.roles().contains("SYSTEM_ADMIN")) {
@@ -169,14 +151,10 @@ public class UserService {
         User target = userRepository.findById(id)
                 .orElseThrow(this::notFound);
         for (String roleName : getRoleNames(target)) {
-            assertCallerCanManageRole(callerRoleNames, roleName);
+            RoleTier.assertCallerCanManageRole(callerRoleNames, roleName);
         }
         userRoleRepository.deleteByUserId(id);
         userRepository.deleteById(id);
-    }
-
-    public boolean isSetupRequired() {
-        return userRepository.count() == 0;
     }
 
     public Optional<User> findByEmail(String email) {
@@ -240,15 +218,5 @@ public class UserService {
 
     private ResponseStatusException emailInUse() {
         return new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
-    }
-
-    private void assertCallerCanManageRole(Set<String> callerRoleNames, String targetRoleName) {
-        if (callerRoleNames.contains("SYSTEM_ADMIN")) {
-            return;
-        }
-        if (callerRoleNames.contains("ADMIN") && ADMIN_MANAGEABLE_ROLES.contains(targetRoleName)) {
-            return;
-        }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage role: " + targetRoleName);
     }
 }

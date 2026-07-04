@@ -8,7 +8,7 @@ import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.service.ExportService;
 import com.mrpaulwoods.equipment.backend.service.ImportService;
-import com.mrpaulwoods.equipment.backend.service.UserService;
+import com.mrpaulwoods.equipment.backend.service.AdminBootstrap;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,7 +69,7 @@ class BackendApplicationIT {
     private ExportService exportService;
 
     @Autowired
-    private UserService userService;
+    private AdminBootstrap adminBootstrap;
 
     @Test
     void flywayMigrationsApplyAgainstRealPostgres() {
@@ -113,12 +113,12 @@ class BackendApplicationIT {
     @Test
     @Transactional
     void createInitialAdminIsGuardedByAdvisoryLockAndUserCount() {
-        User admin = userService.createInitialAdmin("admin@example.com", "super-secret-password");
+        User admin = adminBootstrap.createInitialAdmin("admin@example.com", "super-secret-password");
 
         assertThat(admin.getId()).isNotNull();
         assertThat(admin.getUserRoles()).hasSize(4);
 
-        assertThatThrownBy(() -> userService.createInitialAdmin("second@example.com", "another-password"))
+        assertThatThrownBy(() -> adminBootstrap.createInitialAdmin("second@example.com", "another-password"))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     }

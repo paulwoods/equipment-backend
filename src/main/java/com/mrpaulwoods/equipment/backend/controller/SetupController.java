@@ -23,7 +23,7 @@ import java.util.Map;
 @Tag(name = "Setup", description = "First-run admin account creation")
 public class SetupController {
 
-    private final UserService userService;
+    private final AdminBootstrap adminBootstrap;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final UserDetailsServiceImpl userDetailsService;
@@ -32,7 +32,7 @@ public class SetupController {
     @Operation(summary = "Check whether initial setup is required")
     @GetMapping("/status")
     public Map<String, Boolean> status() {
-        return Map.of("setupRequired", userService.isSetupRequired());
+        return Map.of("setupRequired", adminBootstrap.isSetupRequired());
     }
 
     @Operation(summary = "Create the initial admin account")
@@ -42,11 +42,11 @@ public class SetupController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        if (!userService.isSetupRequired()) {
+        if (!adminBootstrap.isSetupRequired()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed");
         }
 
-        User user = userService.createInitialAdmin(setupRequest.email(), setupRequest.password());
+        User user = adminBootstrap.createInitialAdmin(setupRequest.email(), setupRequest.password());
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String accessToken = jwtService.generateToken(userDetails, user.getTokenVersion());

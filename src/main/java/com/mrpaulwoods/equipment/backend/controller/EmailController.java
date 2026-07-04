@@ -1,6 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.service.EmailService;
+import com.mrpaulwoods.equipment.backend.service.RoleTier;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class EmailController {
     private final EmailService emailService;
 
     @Operation(summary = "Send the dashboard summary email to all users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(RoleTier.EMAIL)
     @PostMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> sendDashboard() {
         try {

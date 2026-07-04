@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.ProcedureRequest;
 import com.mrpaulwoods.equipment.backend.dto.ProcedureResponse;
 import com.mrpaulwoods.equipment.backend.service.ProcedureService;
+import com.mrpaulwoods.equipment.backend.service.RoleTier;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,14 +25,14 @@ public class ProcedureController {
     private final ProcedureService procedureService;
 
     @Operation(summary = "List all procedures for an equipment record")
-    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.READ)
     @GetMapping
     public ResponseEntity<List<ProcedureResponse>> getAll(@PathVariable UUID equipmentId) {
         return ResponseEntity.ok(procedureService.getAllForEquipment(equipmentId));
     }
 
     @Operation(summary = "Get a single procedure by ID")
-    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.READ)
     @GetMapping("/{procedureId}")
     public ResponseEntity<ProcedureResponse> getById(@PathVariable UUID equipmentId,
                                                            @PathVariable UUID procedureId) {
@@ -39,7 +40,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Create a new procedure for an equipment record")
-    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.WRITE)
     @PostMapping
     public ResponseEntity<ProcedureResponse> create(@PathVariable UUID equipmentId,
                                                           @Valid @RequestBody ProcedureRequest request) {
@@ -47,7 +48,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Update an existing procedure")
-    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.WRITE)
     @PutMapping("/{procedureId}")
     public ResponseEntity<ProcedureResponse> update(@PathVariable UUID equipmentId,
                                                           @PathVariable UUID procedureId,
@@ -56,7 +57,7 @@ public class ProcedureController {
     }
 
     @Operation(summary = "Delete a procedure")
-    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.WRITE)
     @DeleteMapping("/{procedureId}")
     public ResponseEntity<Void> delete(@PathVariable UUID equipmentId, @PathVariable UUID procedureId) {
         procedureService.delete(equipmentId, procedureId);

@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SetupControllerTest {
 
     @Mock
-    private UserService userService;
+    private AdminBootstrap adminBootstrap;
 
     @Mock
     private JwtService jwtService;
@@ -56,13 +56,13 @@ class SetupControllerTest {
     @BeforeEach
     void setUp() {
         appProperties = new AppProperties();
-        setupController = new SetupController(userService, jwtService, refreshTokenService, userDetailsService, new CookieService(appProperties));
+        setupController = new SetupController(adminBootstrap, jwtService, refreshTokenService, userDetailsService, new CookieService(appProperties));
         mockMvc = MockMvcBuilders.standaloneSetup(setupController).build();
     }
 
     @Test
     void status_whenNoUsers_returnsSetupRequired() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(true);
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/setup/status"))
                 .andExpect(status().isOk())
@@ -71,7 +71,7 @@ class SetupControllerTest {
 
     @Test
     void status_whenUsersExist_returnsSetupNotRequired() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(false);
+        when(adminBootstrap.isSetupRequired()).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/setup/status"))
                 .andExpect(status().isOk())
@@ -80,12 +80,12 @@ class SetupControllerTest {
 
     @Test
     void setup_whenNoUsers_createsSystemAdminAndReturnsEmail() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(true);
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
+        when(adminBootstrap.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -112,12 +112,12 @@ class SetupControllerTest {
     @Test
     void setup_overHttps_setsSecureHardenedCookies() throws Exception {
         appProperties.setCookieSecure(true);
-        when(userService.isSetupRequired()).thenReturn(true);
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
+        when(adminBootstrap.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -159,12 +159,12 @@ class SetupControllerTest {
 
     @Test
     void setup_overHttp_doesNotSetSecureFlag() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(true);
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
 
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail("admin@example.com");
-        when(userService.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
+        when(adminBootstrap.createInitialAdmin("admin@example.com", "password123")).thenReturn(user);
 
         UserDetails ud = new org.springframework.security.core.userdetails.User(
                 "admin@example.com", "hashed", List.of(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_EDIT"), new SimpleGrantedAuthority("ROLE_USER")));
@@ -195,7 +195,7 @@ class SetupControllerTest {
 
     @Test
     void setup_whenUsersExist_returns409() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(false);
+        when(adminBootstrap.isSetupRequired()).thenReturn(false);
 
         String body = """
                 {"email": "another@example.com", "password": "password123"}
@@ -209,8 +209,8 @@ class SetupControllerTest {
 
     @Test
     void setup_whenServiceDetectsConcurrentSetup_returns409() throws Exception {
-        when(userService.isSetupRequired()).thenReturn(true);
-        when(userService.createInitialAdmin("admin@example.com", "password123"))
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
+        when(adminBootstrap.createInitialAdmin("admin@example.com", "password123"))
                 .thenThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Setup already completed"));
 
         mockMvc.perform(post("/api/v1/setup")

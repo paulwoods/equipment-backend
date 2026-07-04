@@ -3,6 +3,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 import com.mrpaulwoods.equipment.backend.dto.PerformRequest;
 import com.mrpaulwoods.equipment.backend.dto.PerformResponse;
 import com.mrpaulwoods.equipment.backend.service.PerformHistoryService;
+import com.mrpaulwoods.equipment.backend.service.RoleTier;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class PerformHistoryController {
     private final PerformHistoryService performHistoryService;
 
     @Operation(summary = "List all perform records for a procedure")
-    @PreAuthorize("hasAnyRole('USER', 'EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.READ)
     @GetMapping
     public ResponseEntity<List<PerformResponse>> getHistory(@PathVariable UUID equipmentId,
                                                                 @PathVariable UUID procedureId) {
@@ -32,7 +33,7 @@ public class PerformHistoryController {
     }
 
     @Operation(summary = "Record a new maintenance performance entry")
-    @PreAuthorize("hasAnyRole('EDIT', 'ADMIN', 'SYSTEM_ADMIN')")
+    @PreAuthorize(RoleTier.WRITE)
     @PostMapping
     public ResponseEntity<PerformResponse> record(@PathVariable UUID equipmentId,
                                                         @PathVariable UUID procedureId,
