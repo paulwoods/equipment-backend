@@ -1,4 +1,4 @@
-package com.mrpaulwoods.equipment.backend.service;
+package com.mrpaulwoods.equipment.backend.ratelimit;
 
 import com.github.benmanes.caffeine.cache.Ticker;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
@@ -23,7 +23,7 @@ class ForgotPasswordRateLimiterServiceTest {
         appProperties.setForgotPasswordWindowMs(60_000L);
         nanos = new AtomicLong();
         Ticker ticker = nanos::get;
-        service = new ForgotPasswordRateLimiterService(appProperties, ticker);
+        service = new ForgotPasswordRateLimiterService(appProperties, new WindowedCounterFactory(ticker));
     }
 
     @Test

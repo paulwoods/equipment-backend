@@ -3,6 +3,8 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.dto.RoleResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.ratelimit.ForgotPasswordRateLimiterService;
+import com.mrpaulwoods.equipment.backend.ratelimit.LoginRateLimiterService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;

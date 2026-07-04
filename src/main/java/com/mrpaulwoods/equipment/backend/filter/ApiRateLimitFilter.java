@@ -1,9 +1,9 @@
 package com.mrpaulwoods.equipment.backend.filter;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.exception.ProblemDetails;
+import com.mrpaulwoods.equipment.backend.ratelimit.WindowedCounter;
+import com.mrpaulwoods.equipment.backend.ratelimit.WindowedCounterFactory;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,7 +19,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -35,15 +34,14 @@ public class ApiRateLimitFilter implements Filter {
 
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
-    private final Cache<String, AtomicInteger> requests;
+    private final WindowedCounter<String> requests;
 
-    public ApiRateLimitFilter(AppProperties appProperties, ObjectMapper objectMapper) {
+    public ApiRateLimitFilter(AppProperties appProperties, ObjectMapper objectMapper,
+                              WindowedCounterFactory counterFactory) {
         this.appProperties = appProperties;
         this.objectMapper = objectMapper;
-        this.requests = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofMillis(appProperties.getApiRateLimitWindowMs()))
-                .maximumSize(10_000)
-                .build();
+        this.requests = counterFactory.create(
+                Duration.ofMillis(appProperties.getApiRateLimitWindowMs()));
     }
 
     @Override
@@ -59,8 +57,7 @@ public class ApiRateLimitFilter implements Filter {
         }
 
         String clientIp = httpRequest.getRemoteAddr();
-        AtomicInteger count = requests.get(clientIp, _ -> new AtomicInteger(0));
-        int current = count.incrementAndGet();
+        int current = requests.increment(clientIp);
 
         if (current > appProperties.getApiRateLimitMaxRequests()) {
             log.warn("Rate limit exceeded for IP: {}", clientIp);

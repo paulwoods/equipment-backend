@@ -3,6 +3,8 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.ratelimit.ForgotPasswordRateLimiterService;
+import com.mrpaulwoods.equipment.backend.ratelimit.LoginRateLimiterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
