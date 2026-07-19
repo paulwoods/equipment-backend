@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
-import com.mrpaulwoods.equipment.backend.dto.ExportResponse;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentTransfer;
 import com.mrpaulwoods.equipment.backend.dto.ImportResult;
 import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
@@ -69,8 +69,8 @@ class EquipmentControllerTest {
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15));
     }
 
-    private ExportResponse.EquipmentExport sampleEquipmentExport() {
-        return new ExportResponse.EquipmentExport(
+    private EquipmentTransfer sampleEquipmentExport() {
+        return new EquipmentTransfer(
                 EQ_ID.toString(), "Acme", "X100", "SN-001", null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15), List.of());
     }
@@ -209,26 +209,6 @@ class EquipmentControllerTest {
                 .andExpect(jsonPath("$.equipmentImported").value(2))
                 .andExpect(jsonPath("$.proceduresImported").value(3))
                 .andExpect(jsonPath("$.historyImported").value(5));
-    }
-
-    @Test
-    void importEquipment_withEmptyFile_returns400() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", new byte[0]);
-
-        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Import Error"))
-                .andExpect(jsonPath("$.detail").value("Import file is empty"));
-    }
-
-    @Test
-    void importEquipment_withInvalidJson_returns400() throws Exception {
-        MockMultipartFile file = new MockMultipartFile("file", "equipment.json", "application/json", "not json".getBytes());
-
-        mockMvc.perform(multipart("/api/v1/equipment/import").file(file))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Import Error"))
-                .andExpect(jsonPath("$.detail").exists());
     }
 
     @Test

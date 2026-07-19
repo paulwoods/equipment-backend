@@ -2,9 +2,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.EquipmentRequest;
 import com.mrpaulwoods.equipment.backend.dto.EquipmentResponse;
-import com.mrpaulwoods.equipment.backend.dto.ImportRequest;
 import com.mrpaulwoods.equipment.backend.dto.ImportResult;
-import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.service.EquipmentService;
 import com.mrpaulwoods.equipment.backend.service.ExportService;
 import com.mrpaulwoods.equipment.backend.service.ImportService;
@@ -24,13 +22,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.core.exc.StreamReadException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -70,19 +66,7 @@ public class EquipmentController {
     @PreAuthorize(RoleTier.WRITE)
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImportResult> importEquipment(@RequestParam("file") MultipartFile file) throws IOException {
-        if (file.isEmpty()) {
-            throw new ImportEquipmentException("Import file is empty");
-        }
-        List<ImportRequest.EquipmentImport> items;
-        try {
-            items = objectMapper.readValue(
-                    file.getInputStream(),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, ImportRequest.EquipmentImport.class)
-            );
-        } catch (StreamReadException e) {
-            throw new ImportEquipmentException("Invalid JSON in import file: " + e.getOriginalMessage());
-        }
-        return ResponseEntity.ok(importService.importEquipment(items));
+        return ResponseEntity.ok(importService.importEquipment(file.getInputStream()));
     }
 
     @Operation(summary = "Get a single equipment record by ID")

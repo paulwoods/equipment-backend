@@ -2,6 +2,8 @@ package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.ForgotPasswordRequest;
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
+import com.mrpaulwoods.equipment.backend.dto.LoginResponse;
+import com.mrpaulwoods.equipment.backend.dto.MessageResponse;
 import com.mrpaulwoods.equipment.backend.dto.ResetPasswordRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.service.AuthService;
@@ -18,8 +20,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -31,7 +31,7 @@ public class AuthController {
 
     @Operation(summary = "Log in with email and password")
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(
+    public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest loginRequest,
             HttpServletRequest request,
             HttpServletResponse response
@@ -42,7 +42,7 @@ public class AuthController {
         cookieService.setAccessTokenCookie(request, response, tokens.accessToken());
         cookieService.setRefreshTokenCookie(request, response, tokens.rawRefreshToken());
 
-        return ResponseEntity.ok(Map.of("email", tokens.email()));
+        return ResponseEntity.ok(new LoginResponse(tokens.email()));
     }
 
     @Operation(summary = "Log out and clear auth cookies")
@@ -67,19 +67,19 @@ public class AuthController {
 
     @Operation(summary = "Request a password reset email")
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(
+    public ResponseEntity<MessageResponse> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request,
             HttpServletRequest servletRequest
     ) {
         authService.forgotPassword(request.email(), servletRequest.getRemoteAddr());
-        return ResponseEntity.ok(Map.of("message", "If the email exists in our system, you will receive reset instructions shortly."));
+        return ResponseEntity.ok(new MessageResponse("If the email exists in our system, you will receive reset instructions shortly."));
     }
 
     @Operation(summary = "Reset password using a token")
     @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.token(), request.newPassword());
-        return ResponseEntity.ok(Map.of("message", "Password updated"));
+        return ResponseEntity.ok(new MessageResponse("Password updated"));
     }
 
     @Operation(summary = "Return the currently authenticated user")

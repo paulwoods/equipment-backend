@@ -1,6 +1,8 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.dto.ExportResponse;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentTransfer;
+import com.mrpaulwoods.equipment.backend.dto.PerformTransfer;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureTransfer;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
@@ -60,10 +62,10 @@ class ExportServiceTest {
 
         when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of(equipment));
 
-        List<ExportResponse.EquipmentExport> result = exportService.exportAll();
+        List<EquipmentTransfer> result = exportService.exportAll();
 
         assertThat(result).hasSize(1);
-        ExportResponse.EquipmentExport exported = result.getFirst();
+        EquipmentTransfer exported = result.getFirst();
         assertThat(exported.id()).isEqualTo(equipment.getId().toString());
         assertThat(exported.manufacturer()).isEqualTo("Acme");
         assertThat(exported.modelNumber()).isEqualTo("X100");
@@ -72,14 +74,14 @@ class ExportServiceTest {
         assertThat(exported.purchaseDate()).isEqualTo(LocalDate.of(2024, 1, 15));
         assertThat(exported.procedures()).hasSize(1);
 
-        ExportResponse.ProcedureExport exportedProcedure = exported.procedures().getFirst();
+        ProcedureTransfer exportedProcedure = exported.procedures().getFirst();
         assertThat(exportedProcedure.id()).isEqualTo(procedure.getId().toString());
         assertThat(exportedProcedure.name()).isEqualTo("Oil change");
         assertThat(exportedProcedure.steps()).isEqualTo("Drain and refill");
         assertThat(exportedProcedure.intervalDays()).isEqualTo(90);
         assertThat(exportedProcedure.history()).hasSize(1);
 
-        ExportResponse.PerformExport exportedPerform = exportedProcedure.history().getFirst();
+        PerformTransfer exportedPerform = exportedProcedure.history().getFirst();
         assertThat(exportedPerform.id()).isEqualTo(perform.getId().toString());
         assertThat(exportedPerform.date()).isEqualTo(LocalDate.of(2024, 6, 1));
         assertThat(exportedPerform.notes()).isEqualTo("Done");
@@ -92,7 +94,7 @@ class ExportServiceTest {
     void exportAll_whenEmpty_returnsEmptyList() {
         when(equipmentRepository.findAllWithProcedures()).thenReturn(List.of());
 
-        List<ExportResponse.EquipmentExport> result = exportService.exportAll();
+        List<EquipmentTransfer> result = exportService.exportAll();
 
         assertThat(result).isEmpty();
         verify(equipmentRepository).findAllWithProcedures();

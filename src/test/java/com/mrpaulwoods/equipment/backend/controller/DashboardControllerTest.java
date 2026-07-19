@@ -2,6 +2,7 @@ package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
 import com.mrpaulwoods.equipment.backend.service.DashboardService;
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +39,7 @@ class DashboardControllerTest {
     void getDashboard_returnsDashboardItems() throws Exception {
         DashboardItem item = new DashboardItem(
                 "eq-1", "Pump A", "proc-1", "Oil Change",
-                "Change oil", 90, 5, "2024-06-15", "DUE_SOON"
+                "Change oil", 90, 5, "2024-06-15", DueStatus.UPCOMING
         );
         when(dashboardService.getDashboardItems()).thenReturn(List.of(item));
 
@@ -47,7 +48,7 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$[0].equipmentId").value("eq-1"))
                 .andExpect(jsonPath("$[0].procedureName").value("Oil Change"))
                 .andExpect(jsonPath("$[0].daysTillDue").value(5))
-                .andExpect(jsonPath("$[0].status").value("DUE_SOON"));
+                .andExpect(jsonPath("$[0].status").value("Upcoming"));
     }
 
     @Test

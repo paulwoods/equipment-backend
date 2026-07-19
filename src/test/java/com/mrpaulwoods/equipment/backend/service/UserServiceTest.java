@@ -68,6 +68,14 @@ class UserServiceTest {
         given(roleRepository.findByName(name)).willReturn(Optional.of(roleEntity(name)));
     }
 
+    private CallerContext caller(String... roleNames) {
+        return new CallerContext(UUID.randomUUID(), Set.of(roleNames));
+    }
+
+    private CallerContext caller(UUID userId, String... roleNames) {
+        return new CallerContext(userId, Set.of(roleNames));
+    }
+
     // --- create ---
 
     @Test
@@ -84,7 +92,7 @@ class UserServiceTest {
         });
         mockRole("ADMIN");
 
-        UserResponse response = userService.create(request, Set.of("SYSTEM_ADMIN"));
+        UserResponse response = userService.create(request, caller("SYSTEM_ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
@@ -103,7 +111,7 @@ class UserServiceTest {
         });
         mockRole("USER");
 
-        UserResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, caller("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("USER");
         assertThat(response.name()).isEqualTo("Alice");
@@ -123,7 +131,7 @@ class UserServiceTest {
         });
         mockRole("EDIT");
 
-        UserResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, caller("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
     }
@@ -142,7 +150,7 @@ class UserServiceTest {
         });
         mockRole("ADMIN");
 
-        UserResponse response = userService.create(request, Set.of("ADMIN"));
+        UserResponse response = userService.create(request, caller("ADMIN"));
 
         assertThat(response.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
     }
@@ -152,7 +160,7 @@ class UserServiceTest {
         var request = new UserRequest("SA", "sa@example.com", "secret", Set.of("SYSTEM_ADMIN"));
         mockRole("SYSTEM_ADMIN");
 
-        assertThatThrownBy(() -> userService.create(request, Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.create(request, caller("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -168,7 +176,7 @@ class UserServiceTest {
         given(userRepository.findByEmail("existing@example.com"))
                 .willReturn(Optional.of(sampleUser(UUID.randomUUID(), "Existing", "existing@example.com")));
 
-        assertThatThrownBy(() -> userService.create(request, Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.create(request, caller("ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.CONFLICT.value());
@@ -235,7 +243,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("ADMIN");
 
-        UserResponse result = userService.update(id, request, currentUserId, Set.of("SYSTEM_ADMIN"));
+        UserResponse result = userService.update(id, request, caller(currentUserId, "SYSTEM_ADMIN"));
 
         assertThat(result.name()).isEqualTo("New");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
@@ -253,7 +261,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("EDIT");
 
-        UserResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
+        UserResponse result = userService.update(id, request, caller(currentUserId, "ADMIN"));
 
         assertThat(result.name()).isEqualTo("New Name");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("EDIT");
@@ -271,7 +279,7 @@ class UserServiceTest {
         given(userRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
         mockRole("ADMIN");
 
-        UserResponse result = userService.update(id, request, currentUserId, Set.of("ADMIN"));
+        UserResponse result = userService.update(id, request, caller(currentUserId, "ADMIN"));
 
         assertThat(result.name()).isEqualTo("Admin2");
         assertThat(result.roles()).extracting(RoleResponse::name).containsExactly("ADMIN");
@@ -282,7 +290,7 @@ class UserServiceTest {
         UUID id = UUID.randomUUID();
         var request = new UserUpdateRequest("Me", "me@example.com", Set.of("USER"));
 
-        assertThatThrownBy(() -> userService.update(id, request, id, Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.update(id, request, caller(id, "ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -299,7 +307,7 @@ class UserServiceTest {
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         mockRole("USER");
 
-        assertThatThrownBy(() -> userService.update(id, request, id, Set.of("SYSTEM_ADMIN")))
+        assertThatThrownBy(() -> userService.update(id, request, caller(id, "SYSTEM_ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -320,7 +328,7 @@ class UserServiceTest {
         given(userRepository.findById(id)).willReturn(Optional.of(user));
         given(userRepository.findByEmail("taken@example.com")).willReturn(Optional.of(other));
 
-        assertThatThrownBy(() -> userService.update(id, request, currentUserId, Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.update(id, request, caller(currentUserId, "ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.CONFLICT.value());
@@ -332,7 +340,7 @@ class UserServiceTest {
         var request = new UserUpdateRequest("Alice", "alice@example.com", Set.of("USER"));
         given(userRepository.findById(id)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.update(id, request, UUID.randomUUID(), Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.update(id, request, caller(UUID.randomUUID(), "ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.NOT_FOUND.value());
@@ -463,7 +471,7 @@ class UserServiceTest {
         target.getUserRoles().add(userRole(target, roleEntity("USER")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        userService.delete(id, currentUserId, Set.of("ADMIN"));
+        userService.delete(id, caller(currentUserId, "ADMIN"));
 
         then(userRepository).should().deleteById(id);
     }
@@ -476,7 +484,7 @@ class UserServiceTest {
         target.getUserRoles().add(userRole(target, roleEntity("ADMIN")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        userService.delete(id, currentUserId, Set.of("ADMIN"));
+        userService.delete(id, caller(currentUserId, "ADMIN"));
 
         then(userRepository).should().deleteById(id);
     }
@@ -489,7 +497,7 @@ class UserServiceTest {
         target.getUserRoles().add(userRole(target, roleEntity("ADMIN")));
         given(userRepository.findById(id)).willReturn(Optional.of(target));
 
-        userService.delete(id, currentUserId, Set.of("SYSTEM_ADMIN"));
+        userService.delete(id, caller(currentUserId, "SYSTEM_ADMIN"));
 
         then(userRepository).should().deleteById(id);
     }
@@ -498,7 +506,7 @@ class UserServiceTest {
     void delete_selfDelete_throwsForbidden() {
         UUID id = UUID.randomUUID();
 
-        assertThatThrownBy(() -> userService.delete(id, id, Set.of("SYSTEM_ADMIN")))
+        assertThatThrownBy(() -> userService.delete(id, caller(id, "SYSTEM_ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.FORBIDDEN.value());
@@ -512,7 +520,7 @@ class UserServiceTest {
         UUID currentUserId = UUID.randomUUID();
         given(userRepository.findById(id)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.delete(id, currentUserId, Set.of("ADMIN")))
+        assertThatThrownBy(() -> userService.delete(id, caller(currentUserId, "ADMIN")))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
                 .isEqualTo(HttpStatus.NOT_FOUND.value());

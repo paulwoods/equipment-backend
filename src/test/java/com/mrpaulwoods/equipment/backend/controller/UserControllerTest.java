@@ -1,8 +1,11 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.config.CallerContextArgumentResolver;
 import com.mrpaulwoods.equipment.backend.dto.RoleResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.repository.UserRepository;
+import com.mrpaulwoods.equipment.backend.service.CallerContext;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,9 @@ class UserControllerTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private UserController userController;
 
@@ -53,7 +59,9 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(userController)
-                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .setCustomArgumentResolvers(
+                        new PageableHandlerMethodArgumentResolver(),
+                        new CallerContextArgumentResolver(userRepository))
                 .addFilter((request, response, chain) -> {
                     var auth = SecurityContextHolder.getContext().getAuthentication();
                     if (auth != null) {
@@ -81,7 +89,7 @@ class UserControllerTest {
                 ADMIN_EMAIL, null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
         SecurityContextHolder.getContext().setAuthentication(auth);
-        org.mockito.Mockito.lenient().when(userService.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(adminUser));
+        org.mockito.Mockito.lenient().when(userRepository.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(adminUser));
     }
 
     @Test
@@ -147,7 +155,7 @@ class UserControllerTest {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
         var response = new UserResponse(targetId, "Updated", "updated@example.com", Set.of(new RoleResponse(UUID.randomUUID(), "USER")));
-        given(userService.update(any(), any(), any(), any())).willReturn(response);
+        given(userService.update(any(), any(), any())).willReturn(response);
 
         String body = """
                 {"name": "Updated", "email": "updated@example.com", "roles": ["USER"]}
@@ -165,12 +173,12 @@ class UserControllerTest {
     void delete_whenExists_returns204() throws Exception {
         authenticateAsAdmin();
         UUID targetId = UUID.randomUUID();
-        doNothing().when(userService).delete(any(), any(), any());
+        doNothing().when(userService).delete(any(), any());
 
         mockMvc.perform(delete("/api/v1/users/{id}", targetId))
                 .andExpect(status().isNoContent());
 
-        then(userService).should().delete(targetId, USER_ID, Set.of("ADMIN"));
+        then(userService).should().delete(targetId, new CallerContext(USER_ID, Set.of("ADMIN")));
     }
 
     @Test
@@ -178,7 +186,7 @@ class UserControllerTest {
         authenticateAsAdmin();
         UUID missing = UUID.randomUUID();
         doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"))
-                .when(userService).delete(any(), any(), any());
+                .when(userService).delete(any(), any());
 
         mockMvc.perform(delete("/api/v1/users/{id}", missing))
                 .andExpect(status().isNotFound());

@@ -1,5 +1,6 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.mrpaulwoods.equipment.backend.exception.GlobalExceptionHandler;
 import com.mrpaulwoods.equipment.backend.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,11 @@ class EmailControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(emailController).build();
+        // Real GlobalExceptionHandler wired in (not a mock/stub) so failure tests prove
+        // the actual RFC7807 problem-detail pipeline the try/catch used to bypass.
+        mockMvc = MockMvcBuilders.standaloneSetup(emailController)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
     }
 
     @Test
@@ -42,20 +47,23 @@ class EmailControllerTest {
     }
 
     @Test
-    void sendDashboard_whenServiceThrows_returns500WithError() throws Exception {
+    void sendDashboard_whenServiceThrows_returnsRfc7807ProblemDetail() throws Exception {
         doThrow(new RuntimeException("SMTP connection failed")).when(emailService).sendDashboardEmail();
 
         mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error").value("Failed to send email"));
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.title").value("Internal Server Error"))
+                .andExpect(jsonPath("$.detail").value("An unexpected error occurred"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/email/dashboard"));
     }
 
     @Test
-    void sendDashboard_whenServiceThrowsWithNullMessage_returns500WithFallback() throws Exception {
+    void sendDashboard_whenServiceThrowsWithNullMessage_stillReturnsRfc7807ProblemDetail() throws Exception {
         doThrow(new RuntimeException((String) null)).when(emailService).sendDashboardEmail();
 
         mockMvc.perform(post("/api/v1/email/dashboard"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.error").value("Failed to send email"));
+                .andExpect(jsonPath("$.detail").value("An unexpected error occurred"));
     }
 }

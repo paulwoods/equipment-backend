@@ -1,7 +1,9 @@
 package com.mrpaulwoods.equipment.backend.service;
 
-import com.mrpaulwoods.equipment.backend.dto.ImportRequest;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentTransfer;
 import com.mrpaulwoods.equipment.backend.dto.ImportResult;
+import com.mrpaulwoods.equipment.backend.dto.PerformTransfer;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureTransfer;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.exception.ImportEquipmentException;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
@@ -13,7 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -30,17 +35,24 @@ class ImportServiceTest {
     private EquipmentRepository equipmentRepository;
 
     private ImportService importService;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
         importService = new ImportService(
                 equipmentRepository,
-                Validation.buildDefaultValidatorFactory().getValidator()
+                Validation.buildDefaultValidatorFactory().getValidator(),
+                objectMapper
         );
     }
 
-    private ImportRequest.EquipmentImport validEquipment() {
-        return new ImportRequest.EquipmentImport(
+    private InputStream toStream(List<EquipmentTransfer> items) {
+        return new ByteArrayInputStream(objectMapper.writeValueAsBytes(items));
+    }
+
+    private EquipmentTransfer validEquipment() {
+        return new EquipmentTransfer(
                 "old-id",
                 "Dell",
                 "G15",
@@ -52,38 +64,18 @@ class ImportServiceTest {
         );
     }
 
-    private ImportRequest.ProcedureImport validProcedure() {
-        return new ImportRequest.ProcedureImport(
-                "old-proc-id",
-                "Clean Fans",
-                null,
-                "1. Blow it out",
-                null,
-                90,
-                List.of()
-        );
-    }
-
-    private ImportRequest.PerformImport validPerform() {
-        return new ImportRequest.PerformImport(
-                "old-perf-id",
-                LocalDate.of(2025, 1, 1),
-                "Done"
-        );
-    }
-
     @Test
-    void importEquipment_withValidData_returnsCorrectCounts() {
-        ImportRequest.PerformImport perf = validPerform();
-        ImportRequest.ProcedureImport proc = new ImportRequest.ProcedureImport(
+    void importEquipment_withValidData_returnsCorrectCounts() throws Exception {
+        PerformTransfer perf = new PerformTransfer("old-perf-id", LocalDate.of(2025, 1, 1), "Done");
+        ProcedureTransfer proc = new ProcedureTransfer(
                 "p1", "Clean Fans", null, "1. Blow", null, 90, List.of(perf));
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of(proc));
 
         when(equipmentRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
-        ImportResult result = importService.importEquipment(List.of(item));
+        ImportResult result = importService.importEquipment(toStream(List.of(item)));
 
         assertThat(result.equipmentImported()).isEqualTo(1);
         assertThat(result.proceduresImported()).isEqualTo(1);
@@ -91,14 +83,14 @@ class ImportServiceTest {
     }
 
     @Test
-    void importEquipment_setsNullStatus_toActive() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+    void importEquipment_setsNullStatus_toActive() throws Exception {
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 null, null, LocalDate.of(2020, 1, 1), List.of());
 
         when(equipmentRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
-        importService.importEquipment(List.of(item));
+        importService.importEquipment(toStream(List.of(item)));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Equipment>> captor = ArgumentCaptor.forClass(List.class);
@@ -107,14 +99,14 @@ class ImportServiceTest {
     }
 
     @Test
-    void importEquipment_doesNotSetId_soPrePersistGeneratesIt() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+    void importEquipment_doesNotSetId_soPrePersistGeneratesIt() throws Exception {
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
 
         when(equipmentRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
-        importService.importEquipment(List.of(item));
+        importService.importEquipment(toStream(List.of(item)));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Equipment>> captor = ArgumentCaptor.forClass(List.class);
@@ -124,14 +116,14 @@ class ImportServiceTest {
     }
 
     @Test
-    void importEquipment_withNullProcedures_importsEquipmentOnly() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+    void importEquipment_withNullProcedures_importsEquipmentOnly() throws Exception {
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), null);
 
         when(equipmentRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
-        ImportResult result = importService.importEquipment(List.of(item));
+        ImportResult result = importService.importEquipment(toStream(List.of(item)));
 
         assertThat(result.equipmentImported()).isEqualTo(1);
         assertThat(result.proceduresImported()).isEqualTo(0);
@@ -139,135 +131,153 @@ class ImportServiceTest {
     }
 
     @Test
-    void importEquipment_withMultipleItems_returnsCorrectCounts() {
-        ImportRequest.EquipmentImport item1 = validEquipment();
-        ImportRequest.EquipmentImport item2 = validEquipment();
+    void importEquipment_withMultipleItems_returnsCorrectCounts() throws Exception {
+        EquipmentTransfer item1 = validEquipment();
+        EquipmentTransfer item2 = validEquipment();
 
         when(equipmentRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
-        ImportResult result = importService.importEquipment(List.of(item1, item2));
+        ImportResult result = importService.importEquipment(toStream(List.of(item1, item2)));
 
         assertThat(result.equipmentImported()).isEqualTo(2);
     }
 
     @Test
+    void importEquipment_withEmptyStream_throwsException() {
+        InputStream empty = new ByteArrayInputStream(new byte[0]);
+
+        assertThatThrownBy(() -> importService.importEquipment(empty))
+                .isInstanceOf(ImportEquipmentException.class)
+                .hasMessage("Import file is empty");
+    }
+
+    @Test
+    void importEquipment_withInvalidJson_throwsException() {
+        InputStream invalid = new ByteArrayInputStream("not json".getBytes());
+
+        assertThatThrownBy(() -> importService.importEquipment(invalid))
+                .isInstanceOf(ImportEquipmentException.class)
+                .hasMessageStartingWith("Invalid JSON in import file: ");
+    }
+
+    @Test
     void validate_missingManufacturer_throwsException() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", null, "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].manufacturer: must not be blank");
     }
 
     @Test
     void validate_blankManufacturer_throwsException() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "  ", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].manufacturer: must not be blank");
     }
 
     @Test
     void validate_missingModelNumber_throwsException() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", null, null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].modelNumber: must not be blank");
     }
 
     @Test
     void validate_missingPurchaseDate_throwsException() {
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, null, List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].purchaseDate: must not be null");
     }
 
     @Test
     void validate_missingProcedureName_throwsException() {
-        ImportRequest.ProcedureImport proc = new ImportRequest.ProcedureImport(
+        ProcedureTransfer proc = new ProcedureTransfer(
                 "p1", null, null, "steps", null, 90, List.of());
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of(proc));
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].procedures[0].name: must not be blank");
     }
 
     @Test
     void validate_missingProcedureSteps_throwsException() {
-        ImportRequest.ProcedureImport proc = new ImportRequest.ProcedureImport(
+        ProcedureTransfer proc = new ProcedureTransfer(
                 "p1", "Clean", null, null, null, 90, List.of());
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of(proc));
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].procedures[0].steps: must not be blank");
     }
 
     @Test
     void validate_nullIntervalDays_throwsException() {
-        ImportRequest.ProcedureImport proc = new ImportRequest.ProcedureImport(
+        ProcedureTransfer proc = new ProcedureTransfer(
                 "p1", "Clean", null, "steps", null, null, List.of());
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of(proc));
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].procedures[0].intervalDays: must not be null");
     }
 
     @Test
     void validate_zeroIntervalDays_throwsException() {
-        ImportRequest.ProcedureImport proc = new ImportRequest.ProcedureImport(
+        ProcedureTransfer proc = new ProcedureTransfer(
                 "p1", "Clean", null, "steps", null, 0, List.of());
-        ImportRequest.EquipmentImport item = new ImportRequest.EquipmentImport(
+        EquipmentTransfer item = new EquipmentTransfer(
                 "e1", "Dell", "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of(proc));
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(item)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(item))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].procedures[0].intervalDays: must be greater than or equal to 1");
     }
 
     @Test
     void validate_errorMessageIncludesCorrectIndex() {
-        ImportRequest.EquipmentImport valid = validEquipment();
-        ImportRequest.EquipmentImport invalid = new ImportRequest.EquipmentImport(
+        EquipmentTransfer valid = validEquipment();
+        EquipmentTransfer invalid = new EquipmentTransfer(
                 "e2", null, "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(valid, invalid)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(valid, invalid))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[1].manufacturer: must not be blank");
     }
 
     @Test
     void validate_collectsAllErrorsAcrossItemsInOneException() {
-        ImportRequest.EquipmentImport first = new ImportRequest.EquipmentImport(
+        EquipmentTransfer first = new EquipmentTransfer(
                 "e1", null, "G15", null, null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2020, 1, 1), List.of());
-        ImportRequest.EquipmentImport second = new ImportRequest.EquipmentImport(
+        EquipmentTransfer second = new EquipmentTransfer(
                 "e2", "Dell", null, null, null, null,
                 EquipmentStatus.ACTIVE, null, null, List.of());
 
-        assertThatThrownBy(() -> importService.importEquipment(List.of(first, second)))
+        assertThatThrownBy(() -> importService.importEquipment(toStream(List.of(first, second))))
                 .isInstanceOf(ImportEquipmentException.class)
                 .hasMessageContaining("Equipment[0].manufacturer: must not be blank")
                 .hasMessageContaining("Equipment[1].modelNumber: must not be blank")

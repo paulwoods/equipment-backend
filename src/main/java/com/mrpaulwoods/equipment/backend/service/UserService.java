@@ -55,10 +55,10 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse create(UserRequest request, Set<String> callerRoleNames) {
+    public UserResponse create(UserRequest request, CallerContext caller) {
         validateRoleNames(request.roles());
         for (String roleName : request.roles()) {
-            RoleTier.assertCallerCanManageRole(callerRoleNames, roleName);
+            caller.assertCanManage(roleName);
         }
         if (userRepository.findByEmail(request.email()).isPresent()) {
             throw emailInUse();
@@ -68,8 +68,8 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse update(UUID id, UserUpdateRequest request, UUID currentUserId, Set<String> callerRoleNames) {
-        if (id.equals(currentUserId) && !callerRoleNames.contains("SYSTEM_ADMIN")) {
+    public UserResponse update(UUID id, UserUpdateRequest request, CallerContext caller) {
+        if (id.equals(caller.userId()) && !caller.isSystemAdmin()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot modify your own account");
         }
 
@@ -78,13 +78,13 @@ public class UserService {
 
         validateRoleNames(request.roles());
         for (String existingRole : getRoleNames(user)) {
-            RoleTier.assertCallerCanManageRole(callerRoleNames, existingRole);
+            caller.assertCanManage(existingRole);
         }
         for (String requestedRole : request.roles()) {
-            RoleTier.assertCallerCanManageRole(callerRoleNames, requestedRole);
+            caller.assertCanManage(requestedRole);
         }
 
-        if (id.equals(currentUserId) && !request.roles().contains("SYSTEM_ADMIN")) {
+        if (id.equals(caller.userId()) && !request.roles().contains("SYSTEM_ADMIN")) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot remove your own SYSTEM_ADMIN role");
         }
 
@@ -144,14 +144,14 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(UUID id, UUID currentUserId, Set<String> callerRoleNames) {
-        if (id.equals(currentUserId)) {
+    public void delete(UUID id, CallerContext caller) {
+        if (id.equals(caller.userId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot delete your own account");
         }
         User target = userRepository.findById(id)
                 .orElseThrow(this::notFound);
         for (String roleName : getRoleNames(target)) {
-            RoleTier.assertCallerCanManageRole(callerRoleNames, roleName);
+            caller.assertCanManage(roleName);
         }
         userRoleRepository.deleteByUserId(id);
         userRepository.deleteById(id);

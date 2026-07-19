@@ -6,6 +6,7 @@ import com.mrpaulwoods.equipment.backend.entity.Perform;
 import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
 import com.mrpaulwoods.equipment.backend.util.EquipmentStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,7 @@ class DashboardServiceTest {
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
         assertThat(items).hasSize(1);
-        assertThat(items.get(0).status()).isEqualTo("No history");
+        assertThat(items.get(0).status()).isEqualTo(DueStatus.NO_HISTORY);
         assertThat(items.get(0).daysTillDue()).isNull();
         assertThat(items.get(0).dueDate()).isNull();
     }
@@ -102,7 +103,7 @@ class DashboardServiceTest {
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
-        assertThat(items.get(0).status()).isEqualTo("Upcoming");
+        assertThat(items.get(0).status()).isEqualTo(DueStatus.UPCOMING);
         assertThat(items.get(0).daysTillDue()).isEqualTo(20);
     }
 
@@ -115,7 +116,7 @@ class DashboardServiceTest {
 
         List<DashboardItem> items = dashboardService.getDashboardItems();
 
-        assertThat(items.get(0).status()).isEqualTo("OVERDUE");
+        assertThat(items.get(0).status()).isEqualTo(DueStatus.OVERDUE);
         assertThat(items.get(0).daysTillDue()).isNegative();
     }
 

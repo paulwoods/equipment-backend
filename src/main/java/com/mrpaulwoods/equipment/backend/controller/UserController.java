@@ -1,7 +1,7 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.*;
-import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.service.CallerContext;
 import com.mrpaulwoods.equipment.backend.service.RoleTier;
 import com.mrpaulwoods.equipment.backend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,12 +15,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -34,8 +30,8 @@ public class UserController {
     @Operation(summary = "Create a new user account")
     @PreAuthorize(RoleTier.MANAGE_USERS)
     @PostMapping
-    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request, Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, callerRoles(authentication)));
+    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request, CallerContext caller) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(request, caller));
     }
 
     @Operation(summary = "List all users (paginated)")
@@ -59,17 +55,15 @@ public class UserController {
     public ResponseEntity<UserResponse> update(
             @PathVariable UUID id,
             @Valid @RequestBody UserUpdateRequest request,
-            Authentication authentication) {
-        UUID currentUserId = currentUserId(authentication);
-        return ResponseEntity.ok(userService.update(id, request, currentUserId, callerRoles(authentication)));
+            CallerContext caller) {
+        return ResponseEntity.ok(userService.update(id, request, caller));
     }
 
     @Operation(summary = "Delete a user account")
     @PreAuthorize(RoleTier.MANAGE_USERS)
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
-        UUID currentUserId = currentUserId(authentication);
-        userService.delete(id, currentUserId, callerRoles(authentication));
+    public ResponseEntity<Void> delete(@PathVariable UUID id, CallerContext caller) {
+        userService.delete(id, caller);
         return ResponseEntity.noContent().build();
     }
 
@@ -78,9 +72,8 @@ public class UserController {
     @PutMapping("/me")
     public ResponseEntity<UserResponse> updateMe(
             @Valid @RequestBody UserSelfUpdateRequest request,
-            Authentication authentication) {
-        UUID currentUserId = currentUserId(authentication);
-        return ResponseEntity.ok(userService.updateSelf(currentUserId, request));
+            CallerContext caller) {
+        return ResponseEntity.ok(userService.updateSelf(caller.userId(), request));
     }
 
     @Operation(summary = "Change own password")
@@ -88,26 +81,8 @@ public class UserController {
     @PostMapping("/me/password")
     public ResponseEntity<Void> changePassword(
             @Valid @RequestBody UserPasswordChangeRequest request,
-            Authentication authentication) {
-        UUID currentUserId = currentUserId(authentication);
-        userService.changePassword(currentUserId, request);
+            CallerContext caller) {
+        userService.changePassword(caller.userId(), request);
         return ResponseEntity.noContent().build();
-    }
-
-    private UUID currentUserId(Authentication authentication) {
-        return userService.findByEmail(authentication.getName())
-                .map(User::getId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-    }
-
-    private Set<String> callerRoles(Authentication authentication) {
-        Set<String> roles = new HashSet<>();
-        authentication.getAuthorities().forEach(a -> {
-            String authority = a.getAuthority();
-            if (authority.startsWith("ROLE_")) {
-                roles.add(authority.substring(5));
-            }
-        });
-        return roles;
     }
 }

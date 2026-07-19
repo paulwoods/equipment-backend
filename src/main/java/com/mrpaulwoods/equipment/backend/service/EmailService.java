@@ -2,6 +2,7 @@ package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,7 +75,7 @@ public class EmailService {
     }
 
     private String buildTableRow(DashboardItem item) {
-        String color = "OVERDUE".equals(item.status()) ? "red" : "inherit";
+        String color = item.status() == DueStatus.OVERDUE ? "red" : "inherit";
         String daysTillDue = item.daysTillDue() != null ? String.valueOf(item.daysTillDue()) : "N/A";
         String dueDate = item.dueDate() != null ? item.dueDate() : "N/A";
         return """

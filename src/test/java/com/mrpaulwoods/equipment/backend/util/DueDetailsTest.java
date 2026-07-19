@@ -91,18 +91,18 @@ class DueDetailsTest {
     @Test
     void status_whenOverdue_returnsOVERDUE() {
         DueDetails due = new DueDetails(-1, LocalDate.now().minusDays(1));
-        assertThat(due.status()).isEqualTo("OVERDUE");
+        assertThat(due.status()).isEqualTo(DueStatus.OVERDUE);
     }
 
     @Test
     void status_whenDueToday_returnsOVERDUE() {
         DueDetails due = new DueDetails(0, LocalDate.now());
-        assertThat(due.status()).isEqualTo("OVERDUE");
+        assertThat(due.status()).isEqualTo(DueStatus.OVERDUE);
     }
 
     @Test
     void status_whenUpcoming_returnsUpcoming() {
         DueDetails due = new DueDetails(5, LocalDate.now().plusDays(5));
-        assertThat(due.status()).isEqualTo("Upcoming");
+        assertThat(due.status()).isEqualTo(DueStatus.UPCOMING);
     }
 }

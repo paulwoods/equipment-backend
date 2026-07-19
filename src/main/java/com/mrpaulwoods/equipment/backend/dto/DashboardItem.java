@@ -1,5 +1,7 @@
 package com.mrpaulwoods.equipment.backend.dto;
 
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
+
 public record DashboardItem(
         String equipmentId,
         String equipmentName,
@@ -9,6 +11,6 @@ public record DashboardItem(
         int intervalDays,
         Integer daysTillDue,
         String dueDate,
-        String status
+        DueStatus status
 ) {
 }

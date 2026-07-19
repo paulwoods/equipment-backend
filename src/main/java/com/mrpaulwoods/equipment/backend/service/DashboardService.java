@@ -6,6 +6,7 @@ import com.mrpaulwoods.equipment.backend.entity.Procedure;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
 import com.mrpaulwoods.equipment.backend.repository.ProcedureRepository;
 import com.mrpaulwoods.equipment.backend.util.DueDetails;
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +51,7 @@ public class DashboardService {
                 proc.getIntervalDays(),
                 due.map(DueDetails::daysTillDue).orElse(null),
                 due.map(d -> d.dueDate().toString()).orElse(null),
-                due.map(DueDetails::status).orElse("No history")
+                due.map(DueDetails::status).orElse(DueStatus.NO_HISTORY)
         );
     }
 }

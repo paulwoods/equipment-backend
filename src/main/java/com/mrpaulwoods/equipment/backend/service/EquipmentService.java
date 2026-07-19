@@ -21,12 +21,12 @@ public class EquipmentService {
     private final EquipmentRepository equipmentRepository;
 
     public Page<EquipmentResponse> getAll(Pageable pageable) {
-        return equipmentRepository.findAll(pageable).map(this::toResponse);
+        return equipmentRepository.findAll(pageable).map(EquipmentMapper::toResponse);
     }
 
     public EquipmentResponse getById(UUID id) {
         return equipmentRepository.findById(id)
-                .map(this::toResponse)
+                .map(EquipmentMapper::toResponse)
                 .orElseThrow(() -> new NotFoundException("Equipment", id.toString()));
     }
 
@@ -37,22 +37,15 @@ public class EquipmentService {
 
     @Transactional
     public EquipmentResponse create(EquipmentRequest request) {
-        var equipment = toEntity(request);
-        return toResponse(equipmentRepository.save(equipment));
+        var equipment = EquipmentMapper.toEntity(request);
+        return EquipmentMapper.toResponse(equipmentRepository.save(equipment));
     }
 
     @Transactional
     public EquipmentResponse update(UUID id, EquipmentRequest request) {
         var existing = getEntityById(id);
-        existing.setManufacturer(request.manufacturer());
-        existing.setModelNumber(request.modelNumber());
-        existing.setSerialNumber(request.serialNumber());
-        existing.setAssetTag(request.assetTag());
-        existing.setLocation(request.location());
-        existing.setStatus(request.status());
-        existing.setDescription(request.description());
-        existing.setPurchaseDate(request.purchaseDate());
-        return toResponse(equipmentRepository.save(existing));
+        EquipmentMapper.applyTo(existing, request);
+        return EquipmentMapper.toResponse(equipmentRepository.save(existing));
     }
 
     @Transactional
@@ -61,24 +54,5 @@ public class EquipmentService {
             throw new NotFoundException("Equipment", id.toString());
         }
         equipmentRepository.deleteById(id);
-    }
-
-    private Equipment toEntity(EquipmentRequest request) {
-        var e = new Equipment();
-        e.setManufacturer(request.manufacturer());
-        e.setModelNumber(request.modelNumber());
-        e.setSerialNumber(request.serialNumber());
-        e.setAssetTag(request.assetTag());
-        e.setLocation(request.location());
-        e.setStatus(request.status());
-        e.setDescription(request.description());
-        e.setPurchaseDate(request.purchaseDate());
-        return e;
-    }
-
-    private EquipmentResponse toResponse(Equipment e) {
-        return new EquipmentResponse(e.getId(), e.getManufacturer(), e.getModelNumber(),
-                e.getSerialNumber(), e.getAssetTag(), e.getLocation(), e.getStatus(),
-                e.getDescription(), e.getPurchaseDate());
     }
 }

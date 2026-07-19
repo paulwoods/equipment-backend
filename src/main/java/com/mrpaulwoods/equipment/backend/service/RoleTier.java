@@ -36,26 +36,28 @@ public final class RoleTier {
     /** User-management endpoints: {@code ADMIN} and above. */
     public static final String MANAGE_USERS = "hasAnyRole('ADMIN', 'SYSTEM_ADMIN')";
 
-    // TODO: this excludes SYSTEM_ADMIN, unlike every other admin-gated endpoint
-    // (MANAGE_USERS). Dashboard email cannot be triggered by a SYSTEM_ADMIN who
-    // is not also an ADMIN — possibly the same class of role-list omission
-    // ADR-0028 documented for PerformHistoryController. Preserved verbatim here
-    // during the RoleTier extraction; align to MANAGE_USERS (or confirm intent)
-    // as a separate change.
-    public static final String EMAIL = "hasRole('ADMIN')";
+    /** Dashboard email trigger: aligned to {@link #MANAGE_USERS} — {@code ADMIN} and above. */
+    public static final String EMAIL = "hasAnyRole('ADMIN', 'SYSTEM_ADMIN')";
 
     /**
-     * Throws {@code 403 FORBIDDEN} unless the caller may manage {@code targetRoleName}:
+     * {@code true} unless the caller may manage {@code targetRoleName}:
      * {@code SYSTEM_ADMIN} may manage any role; {@code ADMIN} may manage only
      * {@code USER}/{@code EDIT}/{@code ADMIN}; anything else is forbidden.
      */
-    public static void assertCallerCanManageRole(Set<String> callerRoleNames, String targetRoleName) {
+    public static boolean canManageRole(Set<String> callerRoleNames, String targetRoleName) {
         if (callerRoleNames.contains("SYSTEM_ADMIN")) {
-            return;
+            return true;
         }
-        if (callerRoleNames.contains("ADMIN") && ADMIN_MANAGEABLE_ROLES.contains(targetRoleName)) {
-            return;
+        return callerRoleNames.contains("ADMIN") && ADMIN_MANAGEABLE_ROLES.contains(targetRoleName);
+    }
+
+    /**
+     * Throws {@code 403 FORBIDDEN} unless the caller may manage {@code targetRoleName}.
+     * See {@link #canManageRole(Set, String)} for the tier rules.
+     */
+    public static void assertCallerCanManageRole(Set<String> callerRoleNames, String targetRoleName) {
+        if (!canManageRole(callerRoleNames, targetRoleName)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage role: " + targetRoleName);
         }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Insufficient privileges to manage role: " + targetRoleName);
     }
 }

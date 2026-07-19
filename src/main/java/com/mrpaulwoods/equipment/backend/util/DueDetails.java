@@ -27,7 +27,7 @@ public record DueDetails(int daysTillDue, LocalDate dueDate) {
         return Optional.of(new DueDetails(daysTillDue, dueDate));
     }
 
-    public String status() {
-        return daysTillDue <= 0 ? "OVERDUE" : "Upcoming";
+    public DueStatus status() {
+        return daysTillDue <= 0 ? DueStatus.OVERDUE : DueStatus.UPCOMING;
     }
 }

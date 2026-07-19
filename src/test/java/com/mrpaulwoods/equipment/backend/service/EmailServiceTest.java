@@ -2,6 +2,7 @@ package com.mrpaulwoods.equipment.backend.service;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
+import com.mrpaulwoods.equipment.backend.util.DueStatus;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -82,7 +83,7 @@ class EmailServiceTest {
         mockMimeMessage();
         DashboardItem item = new DashboardItem(
                 "eq-1", "Acme X100", "proc-1", "Oil Change",
-                "Change oil", 30, -5, LocalDate.now().minusDays(5).toString(), "OVERDUE"
+                "Change oil", 30, -5, LocalDate.now().minusDays(5).toString(), DueStatus.OVERDUE
         );
         when(dashboardService.getDashboardItems()).thenReturn(List.of(item));
 
@@ -97,7 +98,7 @@ class EmailServiceTest {
         mockMimeMessage();
         DashboardItem item = new DashboardItem(
                 "eq-1", "Acme X100", "proc-1", "Oil Change",
-                "Change oil", 30, null, null, "No history"
+                "Change oil", 30, null, null, DueStatus.NO_HISTORY
         );
         when(dashboardService.getDashboardItems()).thenReturn(List.of(item));
 

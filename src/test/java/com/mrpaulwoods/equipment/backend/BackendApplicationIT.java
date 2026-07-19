@@ -1,8 +1,9 @@
 package com.mrpaulwoods.equipment.backend;
 
-import com.mrpaulwoods.equipment.backend.dto.ExportResponse;
-import com.mrpaulwoods.equipment.backend.dto.ImportRequest;
+import com.mrpaulwoods.equipment.backend.dto.EquipmentTransfer;
 import com.mrpaulwoods.equipment.backend.dto.ImportResult;
+import com.mrpaulwoods.equipment.backend.dto.PerformTransfer;
+import com.mrpaulwoods.equipment.backend.dto.ProcedureTransfer;
 import com.mrpaulwoods.equipment.backend.entity.Equipment;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.repository.EquipmentRepository;
@@ -22,7 +23,9 @@ import org.springframework.web.server.ResponseStatusException;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -71,6 +74,9 @@ class BackendApplicationIT {
     @Autowired
     private AdminBootstrap adminBootstrap;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
     void flywayMigrationsApplyAgainstRealPostgres() {
         Integer applied = jdbcTemplate.queryForObject(
@@ -96,15 +102,15 @@ class BackendApplicationIT {
         ImportResult imported = importSampleEquipment();
         assertThat(imported.equipmentImported()).isEqualTo(1);
 
-        List<ExportResponse.EquipmentExport> exported = exportService.exportAll();
+        List<EquipmentTransfer> exported = exportService.exportAll();
 
         assertThat(exported).hasSize(1);
-        ExportResponse.EquipmentExport equipment = exported.getFirst();
+        EquipmentTransfer equipment = exported.getFirst();
         assertThat(equipment.manufacturer()).isEqualTo("Acme");
         assertThat(equipment.modelNumber()).isEqualTo("X100");
         assertThat(equipment.status()).isEqualTo(EquipmentStatus.ACTIVE);
         assertThat(equipment.procedures()).hasSize(1);
-        ExportResponse.ProcedureExport procedure = equipment.procedures().getFirst();
+        ProcedureTransfer procedure = equipment.procedures().getFirst();
         assertThat(procedure.name()).isEqualTo("Oil change");
         assertThat(procedure.history()).hasSize(1);
         assertThat(procedure.history().getFirst().date()).isEqualTo(LocalDate.of(2024, 6, 1));
@@ -124,12 +130,17 @@ class BackendApplicationIT {
     }
 
     private ImportResult importSampleEquipment() {
-        var perform = new ImportRequest.PerformImport(null, LocalDate.of(2024, 6, 1), "Done");
-        var procedure = new ImportRequest.ProcedureImport(
+        var perform = new PerformTransfer(null, LocalDate.of(2024, 6, 1), "Done");
+        var procedure = new ProcedureTransfer(
                 null, "Oil change", null, "Drain and refill", null, 90, List.of(perform));
-        var equipment = new ImportRequest.EquipmentImport(
+        var equipment = new EquipmentTransfer(
                 null, "Acme", "X100", "SN-001", null, null,
                 EquipmentStatus.ACTIVE, null, LocalDate.of(2024, 1, 15), List.of(procedure));
-        return importService.importEquipment(List.of(equipment));
+        byte[] json = objectMapper.writeValueAsBytes(List.of(equipment));
+        try {
+            return importService.importEquipment(new ByteArrayInputStream(json));
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
