@@ -50,6 +50,15 @@ spring:
       pageable:
         max-page-size: 100
 
+management:
+  health:
+    # The container healthcheck reads /actuator/health, so anything contributing
+    # to it can take the container down. SMTP is not needed to serve requests —
+    # only the weekly dashboard email uses it — and an unreachable Gmail would
+    # otherwise mark a perfectly healthy backend unhealthy.
+    mail:
+      enabled: false
+
 app:
   jwt-secret: ${APP_JWT_SECRET}
   smtp-from: ${APP_SMTP_FROM:no-reply@dev.local}

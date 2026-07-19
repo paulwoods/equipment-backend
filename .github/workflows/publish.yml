@@ -159,16 +159,21 @@ jobs:
           ssh "$DROPLET_USER@$DROPLET_HOST" bash -s <<'EOF'
           set -euo pipefail
           cd ~/equipment
-          for i in $(seq 1 30); do
-            if docker compose exec -T backend wget -qO- --tries=1 --timeout=2 \
-                http://localhost:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+          for i in $(seq 1 45); do
+            # curl, not wget: wget is not installed in the backend image, so the
+            # old probe failed every time and the loop only ever timed out.
+            # </dev/null: docker compose exec otherwise reads this script from
+            # stdin, swallowing the lines that report and propagate failure.
+            if docker compose exec -T backend \
+                curl -fsS --max-time 2 http://127.0.0.1:8080/actuator/health </dev/null \
+                | grep -q '"status":"UP"'; then
               echo "Backend healthy after ${i} attempt(s)."
               exit 0
             fi
             echo "Attempt ${i}: backend not yet healthy, retrying in 2s..."
             sleep 2
           done
-          echo "Backend did not report UP within 60s" >&2
+          echo "Backend did not report UP within 90s" >&2
           docker compose logs --tail=100 backend >&2 || true
           exit 1
           EOF

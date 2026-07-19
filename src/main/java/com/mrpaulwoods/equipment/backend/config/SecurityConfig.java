@@ -58,6 +58,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/refresh", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/setup/**").permitAll()
+                        // The container healthcheck probes this. Not reachable from the
+                        // internet: Caddy proxies only /api/* to the backend. Details are
+                        // hidden by default, so this exposes a bare {"status":"UP"}.
+                        .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/v1/**").authenticated()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").authenticated()
                         // Deny-by-default: the backend serves no static content, so anything not
