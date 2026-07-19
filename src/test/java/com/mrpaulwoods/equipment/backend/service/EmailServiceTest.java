@@ -3,6 +3,8 @@ package com.mrpaulwoods.equipment.backend.service;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.dto.DashboardItem;
 import com.mrpaulwoods.equipment.backend.util.DueStatus;
+import jakarta.mail.Multipart;
+import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
@@ -36,7 +39,8 @@ class EmailServiceTest {
     @BeforeEach
     void setUp() {
         when(appProperties.getSmtpFrom()).thenReturn("noreply@example.com");
-        when(appProperties.getEmailRecipient()).thenReturn("user@example.com");
+        // Lenient: the password-reset path doesn't read the dashboard recipient.
+        lenient().when(appProperties.getEmailRecipient()).thenReturn("user@example.com");
         when(appProperties.getAppUrl()).thenReturn("http://localhost:8080");
     }
 
@@ -44,6 +48,32 @@ class EmailServiceTest {
         MimeMessage msg = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(msg);
         return msg;
+    }
+
+    // Walks the nested multipart tree MimeMessageHelper builds and concatenates
+    // every leaf part, so assertions cover both the text and HTML alternatives.
+    private String bodyOf(Multipart multipart) throws Exception {
+        StringBuilder body = new StringBuilder();
+        for (int i = 0; i < multipart.getCount(); i++) {
+            Object content = multipart.getBodyPart(i).getContent();
+            if (content instanceof Multipart nested) {
+                body.append(bodyOf(nested));
+            } else {
+                body.append(content);
+            }
+        }
+        return body.toString();
+    }
+
+    @Test
+    void sendPasswordResetEmail_linksToAppUrl() throws Exception {
+        MimeMessage msg = new MimeMessage((Session) null);
+        when(mailSender.createMimeMessage()).thenReturn(msg);
+
+        emailService.sendPasswordResetEmail("user@example.com", "tok-123");
+
+        String body = bodyOf((Multipart) msg.getContent());
+        assertThat(body).contains("http://localhost:8080/reset-password?token=tok-123");
     }
 
     @Test

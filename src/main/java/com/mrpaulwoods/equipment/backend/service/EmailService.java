@@ -25,7 +25,7 @@ public class EmailService {
     private final AppProperties appProperties;
 
     public void sendPasswordResetEmail(String toEmail, String token) throws Exception {
-        String resetUrl = appProperties.getFrontendUrl() + "/reset-password?token=" + token;
+        String resetUrl = appProperties.getAppUrl() + "/reset-password?token=" + token;
 
         String html = """
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -9,8 +9,9 @@ public class AppProperties {
     private String jwtSecret = "changeme-use-a-32-char-secret-here!!!!";
     private long jwtExpirationMs = 3_600_000L;
     private String smtpFrom;
+    // The public URL users visit. Frontend and API are same-origin behind the
+    // reverse proxy, so this is the base for every user-facing link we email.
     private String appUrl = "http://localhost:8080";
-    private String frontendUrl;
     private String emailRecipient;
     private Boolean cookieSecure;
     private int refreshTokenDays = 7;
@@ -21,8 +22,4 @@ public class AppProperties {
     private int apiRateLimitMaxRequests = 100;
     private long apiRateLimitWindowMs = 60_000L;
     private String corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173";
-
-    public String getFrontendUrl() {
-        return (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl : appUrl;
-    }
 }
