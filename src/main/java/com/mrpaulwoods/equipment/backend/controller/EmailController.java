@@ -20,7 +20,7 @@ public class EmailController {
 
     private final EmailService emailService;
 
-    @Operation(summary = "Send the dashboard summary email to all users")
+    @Operation(summary = "Send the dashboard summary email to the configured recipient")
     @PreAuthorize(RoleTier.EMAIL)
     @PostMapping("/dashboard")
     public ResponseEntity<EmailSendResponse> sendDashboard() throws Exception {

@@ -54,6 +54,7 @@ class BackendApplicationIT {
         registry.add("spring.flyway.user", POSTGRES::getUsername);
         registry.add("spring.flyway.password", POSTGRES::getPassword);
         registry.add("app.jwt-secret", () -> "integration-test-secret-0123456789-abcdefghijklmnop");
+        registry.add("app.email-recipient", () -> "it-recipient@example.com");
         registry.add("spring.mail.username", () -> "it-user");
         registry.add("spring.mail.password", () -> "it-password");
         registry.add("scheduling.enabled", () -> "false");
