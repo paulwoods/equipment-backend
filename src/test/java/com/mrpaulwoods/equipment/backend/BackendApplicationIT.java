@@ -50,9 +50,6 @@ class BackendApplicationIT {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.flyway.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.flyway.user", POSTGRES::getUsername);
-        registry.add("spring.flyway.password", POSTGRES::getPassword);
         registry.add("app.jwt-secret", () -> "integration-test-secret-0123456789-abcdefghijklmnop");
         registry.add("app.email-recipient", () -> "it-recipient@example.com");
         registry.add("spring.mail.username", () -> "it-user");
