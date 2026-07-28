@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -115,65 +113,3 @@ jobs:
             cat push.err >&2
             exit 1
           fi
-
-  deploy:
-    needs: publish
-    runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.publish.outputs.version }}
-      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
-      DROPLET_USER: ${{ secrets.DROPLET_USER }}
-
-    steps:
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-auth-sock: /tmp/ssh-auth.sock
-          ssh-private-key: ${{ secrets.DROPLET_SSH_KEY }}
-
-      - name: Add droplet to known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
-
-      - name: Back up database on droplet
-        run: |
-          ssh "$DROPLET_USER@$DROPLET_HOST" bash -s <<'EOF'
-          set -euo pipefail
-          ~/equipment/backup.sh
-          EOF
-
-      - name: Deploy backend on droplet
-        run: |
-          ssh "$DROPLET_USER@$DROPLET_HOST" VERSION="$VERSION" bash -s <<'EOF'
-          set -euo pipefail
-          cd ~/equipment
-          sed -i "s|paulwoods/equipment-backend:.*|paulwoods/equipment-backend:${VERSION}|" docker-compose.yml
-          docker compose pull backend
-          docker compose up -d --no-deps backend
-          docker compose ps backend
-          EOF
-
-      - name: Wait for backend health
-        run: |
-          ssh "$DROPLET_USER@$DROPLET_HOST" bash -s <<'EOF'
-          set -euo pipefail
-          cd ~/equipment
-          for i in $(seq 1 45); do
-            # curl, not wget: wget is not installed in the backend image, so the
-            # old probe failed every time and the loop only ever timed out.
-            # </dev/null: docker compose exec otherwise reads this script from
-            # stdin, swallowing the lines that report and propagate failure.
-            if docker compose exec -T backend \
-                curl -fsS --max-time 2 http://127.0.0.1:8080/actuator/health </dev/null \
-                | grep -q '"status":"UP"'; then
-              echo "Backend healthy after ${i} attempt(s)."
-              exit 0
-            fi
-            echo "Attempt ${i}: backend not yet healthy, retrying in 2s..."
-            sleep 2
-          done
-          echo "Backend did not report UP within 90s" >&2
-          docker compose logs --tail=100 backend >&2 || true
-          exit 1
-          EOF
