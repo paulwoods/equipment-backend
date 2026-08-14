@@ -1,12 +1,14 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
+import com.mrpaulwoods.equipment.backend.dto.GoogleConfigResponse;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.entity.User;
 import com.mrpaulwoods.equipment.backend.filter.JwtAuthFilter;
 import com.mrpaulwoods.equipment.backend.repository.UserRepository;
 import com.mrpaulwoods.equipment.backend.service.AuthService;
 import com.mrpaulwoods.equipment.backend.service.CookieService;
+import com.mrpaulwoods.equipment.backend.service.GoogleAuthService;
 import com.mrpaulwoods.equipment.backend.service.JwtService;
 import com.mrpaulwoods.equipment.backend.service.UserDetailsServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +46,9 @@ class AuthControllerTest {
     @Mock
     private AuthService authService;
 
+    @Mock
+    private GoogleAuthService googleAuthService;
+
     private AppProperties appProperties;
 
     private AuthController authController;
@@ -53,7 +58,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         appProperties = new AppProperties();
-        authController = new AuthController(authService, new CookieService(appProperties));
+        authController = new AuthController(authService, googleAuthService, new CookieService(appProperties));
         mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
     }
 
@@ -73,6 +78,70 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(email));
+    }
+
+    @Test
+    void googleLogin_withValidCredential_returns200AndSetsAuthCookies() throws Exception {
+        String email = "someone@example.com";
+        when(googleAuthService.login("google-id-token")).thenReturn(issuedTokens(email));
+
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"credential": "google-id-token"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email))
+                .andExpect(cookie().exists("access_token"))
+                .andExpect(cookie().exists("refresh_token"));
+    }
+
+    @Test
+    void googleLogin_withBlankCredential_returns400AndNeverCallsTheService() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"credential": "  "}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verify(googleAuthService, never()).login(anyString());
+    }
+
+    @Test
+    void googleLogin_whenServiceRejectsToken_returns401AndSetsNoCookies() throws Exception {
+        when(googleAuthService.login(anyString()))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Google credential"));
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"credential": "forged"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andReturn();
+
+        assertThat(result.getResponse().getHeaders("Set-Cookie")).isEmpty();
+    }
+
+    @Test
+    void googleConfig_whenEnabled_returnsTheClientId() throws Exception {
+        when(googleAuthService.config()).thenReturn(new GoogleConfigResponse(true, "client-id.apps.googleusercontent.com"));
+
+        mockMvc.perform(get("/api/v1/auth/google/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(true))
+                .andExpect(jsonPath("$.clientId").value("client-id.apps.googleusercontent.com"));
+    }
+
+    @Test
+    void googleConfig_whenDisabled_reportsDisabledWithNoClientId() throws Exception {
+        when(googleAuthService.config()).thenReturn(new GoogleConfigResponse(false, null));
+
+        mockMvc.perform(get("/api/v1/auth/google/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false))
+                .andExpect(jsonPath("$.clientId").isEmpty());
     }
 
     @Test

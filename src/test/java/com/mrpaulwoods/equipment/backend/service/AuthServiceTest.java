@@ -92,6 +92,7 @@ class AuthServiceTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setEmail(email);
+        user.setPassword("stored-hash");
         return user;
     }
 
@@ -124,6 +125,26 @@ class AuthServiceTest {
         assertThat(tokens.rawRefreshToken()).isEqualTo("raw-refresh");
         verify(loginRateLimiter).recordSuccess("1.2.3.4", email);
         verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
+    }
+
+    @Test
+    void login_forAGoogleOnlyAccount_throws401AndIsIndistinguishableFromAnUnknownUser() {
+        String email = "google-user@example.com";
+        User googleOnly = appUser(email);
+        googleOnly.setPassword(null);
+        googleOnly.setGoogleSub("104738291047382910473");
+
+        when(loginRateLimiter.isBlocked("1.2.3.4", email)).thenReturn(false);
+        when(userService.findByEmail(email)).thenReturn(Optional.of(googleOnly));
+
+        assertThatThrownBy(() -> authService.login(email, "anypass12", "1.2.3.4"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.UNAUTHORIZED));
+
+        verify(passwordEncoder).matches("anypass12", "dummy-hash");
+        verify(authenticationManager, never()).authenticate(any());
+        verify(loginRateLimiter).recordFailure("1.2.3.4", email);
     }
 
     @Test

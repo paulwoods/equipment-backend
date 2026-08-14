@@ -43,6 +43,32 @@ public class UserService {
         return saved;
     }
 
+    /**
+     * Provisions an account that authenticates through Google. It gets no password
+     * hash at all, so {@link AuthService#login} can never accept a password for it.
+     */
+    @Transactional
+    public User createFromGoogle(String name, String email, String googleSub, Set<String> roleNames) {
+        User user = new User();
+        user.setName(name);
+        user.setEmail(email);
+        user.setGoogleSub(googleSub);
+        User saved = userRepository.save(user);
+        assignRoles(saved, roleNames);
+        return saved;
+    }
+
+    /** Records the Google subject on an existing account the first time it signs in with Google. */
+    @Transactional
+    public User linkGoogleAccount(User user, String googleSub) {
+        user.setGoogleSub(googleSub);
+        return userRepository.save(user);
+    }
+
+    public Optional<User> findByGoogleSub(String googleSub) {
+        return userRepository.findByGoogleSub(googleSub);
+    }
+
     public Page<UserResponse> findAll(Pageable pageable) {
         return userRepository.findAll(pageable)
                 .map(this::toResponse);

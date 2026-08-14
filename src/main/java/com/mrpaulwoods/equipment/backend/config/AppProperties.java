@@ -22,4 +22,8 @@ public class AppProperties {
     private int apiRateLimitMaxRequests = 100;
     private long apiRateLimitWindowMs = 60_000L;
     private String corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173";
+    // OAuth client ID from the Google Cloud console. Blank disables Google sign-in
+    // entirely: the config endpoint reports it off and the login endpoint refuses.
+    // Public by design — the browser sends it to Google — so it is safe to serve.
+    private String googleClientId = "";
 }

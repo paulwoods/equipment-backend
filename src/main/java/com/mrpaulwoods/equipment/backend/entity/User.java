@@ -28,9 +28,16 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    // Null for accounts provisioned through Google sign-in, which have no local password.
     @JsonIgnore
-    @Column(nullable = false)
+    @Column
     private String password;
+
+    // Google's stable subject identifier. Set once an account has signed in with
+    // Google; matched on before email so a Google-side email change does not
+    // strand the account.
+    @Column(name = "google_sub", unique = true)
+    private String googleSub;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<UserRole> userRoles = new ArrayList<>();

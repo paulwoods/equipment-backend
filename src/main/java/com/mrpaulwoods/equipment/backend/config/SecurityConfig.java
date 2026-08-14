@@ -56,6 +56,9 @@ public class SecurityConfig {
                         // dispatch would be denied and clients would see an empty 403 instead.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/logout", "/api/v1/auth/refresh", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
+                        // Both are pre-authentication by nature: the config endpoint tells the
+                        // login page whether to offer Google, and /google is the login itself.
+                        .requestMatchers("/api/v1/auth/google", "/api/v1/auth/google/config").permitAll()
                         .requestMatchers("/api/v1/version").permitAll()
                         .requestMatchers("/api/v1/setup/**").permitAll()
                         // The container healthcheck probes this. Not reachable from the

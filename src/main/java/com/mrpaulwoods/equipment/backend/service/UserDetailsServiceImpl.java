@@ -30,9 +30,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .map(ur -> new SimpleGrantedAuthority("ROLE_" + ur.getRole().getName()))
                 .toList();
 
+        // Google-provisioned accounts have no password hash, and Spring's User rejects
+        // a null one. The empty string can never match a bcrypt comparison, and
+        // AuthService.login rejects these accounts before reaching the encoder anyway.
         return new User(
                 user.getEmail(),
-                user.getPassword(),
+                user.getPassword() == null ? "" : user.getPassword(),
                 authorities
         );
     }

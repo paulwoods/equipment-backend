@@ -1,6 +1,8 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
 import com.mrpaulwoods.equipment.backend.dto.ForgotPasswordRequest;
+import com.mrpaulwoods.equipment.backend.dto.GoogleConfigResponse;
+import com.mrpaulwoods.equipment.backend.dto.GoogleLoginRequest;
 import com.mrpaulwoods.equipment.backend.dto.LoginRequest;
 import com.mrpaulwoods.equipment.backend.dto.LoginResponse;
 import com.mrpaulwoods.equipment.backend.dto.MessageResponse;
@@ -8,6 +10,7 @@ import com.mrpaulwoods.equipment.backend.dto.ResetPasswordRequest;
 import com.mrpaulwoods.equipment.backend.dto.UserResponse;
 import com.mrpaulwoods.equipment.backend.service.AuthService;
 import com.mrpaulwoods.equipment.backend.service.CookieService;
+import com.mrpaulwoods.equipment.backend.service.GoogleAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
     private final CookieService cookieService;
 
     @Operation(summary = "Log in with email and password")
@@ -38,6 +42,27 @@ public class AuthController {
     ) {
         AuthService.IssuedTokens tokens = authService.login(
                 loginRequest.email(), loginRequest.password(), request.getRemoteAddr());
+
+        cookieService.setAccessTokenCookie(request, response, tokens.accessToken());
+        cookieService.setRefreshTokenCookie(request, response, tokens.rawRefreshToken());
+
+        return ResponseEntity.ok(new LoginResponse(tokens.email()));
+    }
+
+    @Operation(summary = "Report whether Google sign-in is available, and its OAuth client ID")
+    @GetMapping("/google/config")
+    public ResponseEntity<GoogleConfigResponse> googleConfig() {
+        return ResponseEntity.ok(googleAuthService.config());
+    }
+
+    @Operation(summary = "Log in with a Google ID token")
+    @PostMapping("/google")
+    public ResponseEntity<LoginResponse> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest googleLoginRequest,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        AuthService.IssuedTokens tokens = googleAuthService.login(googleLoginRequest.credential());
 
         cookieService.setAccessTokenCookie(request, response, tokens.accessToken());
         cookieService.setRefreshTokenCookie(request, response, tokens.rawRefreshToken());

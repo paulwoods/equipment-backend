@@ -74,7 +74,10 @@ public class AuthService {
         }
 
         Optional<User> existingUser = userService.findByEmail(email);
-        if (existingUser.isEmpty()) {
+        // A Google-provisioned account has no password hash; it is not a password
+        // login candidate, and is treated exactly like an unknown user so that
+        // neither its existence nor its sign-in method leaks.
+        if (existingUser.isEmpty() || existingUser.get().getPassword() == null) {
             // Equalize timing with the password-mismatch path so attackers cannot enumerate users.
             passwordEncoder.matches(password, dummyPasswordHash);
             loginRateLimiter.recordFailure(clientIp, email);
