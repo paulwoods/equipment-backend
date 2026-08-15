@@ -43,6 +43,33 @@ class WindowedCounterTest {
     }
 
     @Test
+    void release_givesBackOneIncrement() {
+        counter.increment("a");
+        counter.increment("a");
+        counter.release("a");
+        assertThat(counter.count("a")).isEqualTo(1);
+    }
+
+    @Test
+    void release_absentKey_isANoOp() {
+        counter.release("a");
+        assertThat(counter.count("a")).isZero();
+    }
+
+    @Test
+    void release_toZero_dropsTheKeySoTheNextWindowStartsFresh() {
+        counter.increment("a");
+        counter.release("a");
+
+        nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(59_000L));
+        counter.increment("a");
+
+        // The window runs from this increment, not from the released one.
+        nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(1_001L));
+        assertThat(counter.count("a")).isEqualTo(1);
+    }
+
+    @Test
     void keysAreIsolated() {
         counter.increment("a");
         counter.increment("a");

@@ -1,8 +1,11 @@
 package com.mrpaulwoods.equipment.backend.controller;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.mrpaulwoods.equipment.backend.config.AppProperties;
 import com.mrpaulwoods.equipment.backend.entity.RefreshToken;
 import com.mrpaulwoods.equipment.backend.entity.User;
+import com.mrpaulwoods.equipment.backend.ratelimit.SetupRateLimiterService;
+import com.mrpaulwoods.equipment.backend.ratelimit.WindowedCounterFactory;
 import com.mrpaulwoods.equipment.backend.service.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +28,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,6 +55,8 @@ class SetupControllerTest {
 
     private AppProperties appProperties;
 
+    private static final String SETUP_TOKEN = "operator-secret";
+
     private SetupController setupController;
 
     private MockMvc mockMvc;
@@ -56,7 +64,15 @@ class SetupControllerTest {
     @BeforeEach
     void setUp() {
         appProperties = new AppProperties();
-        setupController = new SetupController(adminBootstrap, jwtService, refreshTokenService, userDetailsService, new CookieService(appProperties));
+        appProperties.setSetupToken(SETUP_TOKEN);
+        setupController = new SetupController(
+                adminBootstrap,
+                jwtService,
+                refreshTokenService,
+                userDetailsService,
+                new CookieService(appProperties),
+                new SetupRateLimiterService(appProperties, new WindowedCounterFactory(Ticker.systemTicker())),
+                appProperties);
         mockMvc = MockMvcBuilders.standaloneSetup(setupController).build();
     }
 
@@ -99,7 +115,7 @@ class SetupControllerTest {
         when(refreshTokenService.createRefreshToken(user)).thenReturn(new RefreshTokenService.IssuedRefreshToken(UUID.randomUUID().toString(), rt));
 
         String body = """
-                {"email": "admin@example.com", "password": "password123"}
+                {"email": "admin@example.com", "password": "password123", "setupToken": "operator-secret"}
                 """;
 
         mockMvc.perform(post("/api/v1/setup")
@@ -134,7 +150,7 @@ class SetupControllerTest {
                         .secure(true)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "password123"}
+                                {"email": "admin@example.com", "password": "password123", "setupToken": "operator-secret"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -180,7 +196,7 @@ class SetupControllerTest {
         MvcResult result = mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "password123"}
+                                {"email": "admin@example.com", "password": "password123", "setupToken": "operator-secret"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -198,7 +214,7 @@ class SetupControllerTest {
         when(adminBootstrap.isSetupRequired()).thenReturn(false);
 
         String body = """
-                {"email": "another@example.com", "password": "password123"}
+                {"email": "another@example.com", "password": "password123", "setupToken": "operator-secret"}
                 """;
 
         mockMvc.perform(post("/api/v1/setup")
@@ -216,7 +232,7 @@ class SetupControllerTest {
         mockMvc.perform(post("/api/v1/setup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email": "admin@example.com", "password": "password123"}
+                                {"email": "admin@example.com", "password": "password123", "setupToken": "operator-secret"}
                                 """))
                 .andExpect(status().isConflict());
     }
@@ -231,5 +247,77 @@ class SetupControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void setup_withWrongToken_returns403AndCreatesNothing() throws Exception {
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "attacker@evil.com", "password": "password123", "setupToken": "guess"}
+                                """))
+                .andExpect(status().isForbidden());
+
+        verify(adminBootstrap, never()).createInitialAdmin(anyString(), anyString());
+    }
+
+    @Test
+    void setup_withNoToken_returns403AndCreatesNothing() throws Exception {
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "attacker@evil.com", "password": "password123"}
+                                """))
+                .andExpect(status().isForbidden());
+
+        verify(adminBootstrap, never()).createInitialAdmin(anyString(), anyString());
+    }
+
+    @Test
+    void setup_whenNoTokenIsConfigured_failsClosedWith503() throws Exception {
+        appProperties.setSetupToken("");
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
+
+        mockMvc.perform(post("/api/v1/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "attacker@evil.com", "password": "password123", "setupToken": "anything"}
+                                """))
+                .andExpect(status().isServiceUnavailable());
+
+        verify(adminBootstrap, never()).createInitialAdmin(anyString(), anyString());
+    }
+
+    @Test
+    void setup_pastTheAttemptBudget_returns429BeforeTouchingTheBootstrap() throws Exception {
+        appProperties.setSetupMaxAttempts(2);
+        when(adminBootstrap.isSetupRequired()).thenReturn(true);
+        setupController = new SetupController(
+                adminBootstrap,
+                jwtService,
+                refreshTokenService,
+                userDetailsService,
+                new CookieService(appProperties),
+                new SetupRateLimiterService(appProperties, new WindowedCounterFactory(Ticker.systemTicker())),
+                appProperties);
+        mockMvc = MockMvcBuilders.standaloneSetup(setupController).build();
+
+        String guess = """
+                {"email": "attacker@evil.com", "password": "password123", "setupToken": "guess"}
+                """;
+
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/v1/setup").contentType(MediaType.APPLICATION_JSON).content(guess))
+                    .andExpect(status().isForbidden());
+        }
+
+        mockMvc.perform(post("/api/v1/setup").contentType(MediaType.APPLICATION_JSON).content(guess))
+                .andExpect(status().isTooManyRequests());
+
+        verify(adminBootstrap, never()).createInitialAdmin(anyString(), anyString());
     }
 }

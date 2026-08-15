@@ -105,13 +105,13 @@ class AuthServiceTest {
     }
 
     @Test
-    void login_withValidCredentials_returnsTokensAndRecordsSuccess() {
+    void login_withValidCredentials_returnsTokensAndReturnsTheAttempt() {
         String email = "admin@example.com";
         UserDetails ud = userDetails(email);
         User user = appUser(email);
         user.setTokenVersion(3L);
 
-        when(loginRateLimiter.isBlocked("1.2.3.4", email)).thenReturn(false);
+        when(loginRateLimiter.tryAcquire("1.2.3.4", email)).thenReturn(true);
         when(userService.findByEmail(email)).thenReturn(Optional.of(user));
         Authentication auth = new UsernamePasswordAuthenticationToken(ud, null, ud.getAuthorities());
         when(authenticationManager.authenticate(any())).thenReturn(auth);
@@ -124,7 +124,6 @@ class AuthServiceTest {
         assertThat(tokens.accessToken()).isEqualTo("access-token");
         assertThat(tokens.rawRefreshToken()).isEqualTo("raw-refresh");
         verify(loginRateLimiter).recordSuccess("1.2.3.4", email);
-        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
     }
 
     @Test
@@ -134,7 +133,7 @@ class AuthServiceTest {
         googleOnly.setPassword(null);
         googleOnly.setGoogleSub("104738291047382910473");
 
-        when(loginRateLimiter.isBlocked("1.2.3.4", email)).thenReturn(false);
+        when(loginRateLimiter.tryAcquire("1.2.3.4", email)).thenReturn(true);
         when(userService.findByEmail(email)).thenReturn(Optional.of(googleOnly));
 
         assertThatThrownBy(() -> authService.login(email, "anypass12", "1.2.3.4"))
@@ -144,12 +143,12 @@ class AuthServiceTest {
 
         verify(passwordEncoder).matches("anypass12", "dummy-hash");
         verify(authenticationManager, never()).authenticate(any());
-        verify(loginRateLimiter).recordFailure("1.2.3.4", email);
+        verify(loginRateLimiter, never()).recordSuccess(anyString(), anyString());
     }
 
     @Test
     void login_whenUserNotFound_throws401AndPerformsDummyBcryptToEqualizeTiming() {
-        when(loginRateLimiter.isBlocked("1.2.3.4", "ghost@example.com")).thenReturn(false);
+        when(loginRateLimiter.tryAcquire("1.2.3.4", "ghost@example.com")).thenReturn(true);
         when(userService.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.login("ghost@example.com", "anypass12", "1.2.3.4"))
@@ -159,13 +158,13 @@ class AuthServiceTest {
 
         verify(passwordEncoder).matches("anypass12", "dummy-hash");
         verify(authenticationManager, never()).authenticate(any());
-        verify(loginRateLimiter).recordFailure("1.2.3.4", "ghost@example.com");
+        verify(loginRateLimiter, never()).recordSuccess(anyString(), anyString());
     }
 
     @Test
-    void login_withInvalidCredentials_throws401AndRecordsFailure() {
+    void login_withInvalidCredentials_throws401AndKeepsTheAttemptSpent() {
         String email = "admin@example.com";
-        when(loginRateLimiter.isBlocked("1.2.3.4", email)).thenReturn(false);
+        when(loginRateLimiter.tryAcquire("1.2.3.4", email)).thenReturn(true);
         when(userService.findByEmail(email)).thenReturn(Optional.of(appUser(email)));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
 
@@ -174,13 +173,12 @@ class AuthServiceTest {
                 .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                         .isEqualTo(HttpStatus.UNAUTHORIZED));
 
-        verify(loginRateLimiter).recordFailure("1.2.3.4", email);
         verify(loginRateLimiter, never()).recordSuccess(anyString(), anyString());
     }
 
     @Test
     void login_whenRateLimited_throws429AndSkipsAuthentication() {
-        when(loginRateLimiter.isBlocked("1.2.3.4", "admin@example.com")).thenReturn(true);
+        when(loginRateLimiter.tryAcquire("1.2.3.4", "admin@example.com")).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login("admin@example.com", "whatever12", "1.2.3.4"))
                 .isInstanceOf(ResponseStatusException.class)
@@ -188,7 +186,6 @@ class AuthServiceTest {
                         .isEqualTo(HttpStatus.TOO_MANY_REQUESTS));
 
         verify(authenticationManager, never()).authenticate(any());
-        verify(loginRateLimiter, never()).recordFailure(anyString(), anyString());
     }
 
     @Test

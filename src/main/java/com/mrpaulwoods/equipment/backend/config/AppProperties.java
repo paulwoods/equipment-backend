@@ -19,6 +19,12 @@ public class AppProperties {
     private long loginLockoutDurationMs = 15L * 60L * 1000L;
     private int forgotPasswordMaxAttempts = 3;
     private long forgotPasswordWindowMs = 3_600_000L;
+    // Operator-supplied secret that must accompany the first-run setup POST. Blank
+    // disables first-run setup entirely rather than leaving it open: whoever wins the
+    // race to an un-provisioned deployment would otherwise own the only admin account.
+    private String setupToken = "";
+    private int setupMaxAttempts = 5;
+    private long setupWindowMs = 15L * 60L * 1000L;
     private int apiRateLimitMaxRequests = 100;
     private long apiRateLimitWindowMs = 60_000L;
     private String corsAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173";

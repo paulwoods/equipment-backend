@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A per-key count that expires a fixed window after the key's first increment. The
  * Caffeine mechanics (cache build, expire-after-write, atomic increment) live here so
  * the rate-limit policy in each caller stays thin. Generic in the key type: callers
- * own their key (see {@code LoginRateLimiterService}'s composite key).
+ * own their key.
  *
  * <p>The window is anchored at entry creation: subsequent increments mutate the count
  * in place (invisible to the cache) and do not push the expiry out. Once the window
@@ -42,6 +42,15 @@ public final class WindowedCounter<K> {
         return counts.asMap()
                 .computeIfAbsent(key, _ -> new AtomicInteger())
                 .incrementAndGet();
+    }
+
+    /**
+     * Give back one increment. A no-op if the key is absent. The key is dropped once
+     * its count returns to zero, so the next increment starts a fresh window rather
+     * than inheriting the expiry anchored by the increment just undone.
+     */
+    public void release(K key) {
+        counts.asMap().computeIfPresent(key, (_, count) -> count.decrementAndGet() > 0 ? count : null);
     }
 
     /** Clear the key's count. */

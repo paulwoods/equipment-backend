@@ -67,6 +67,9 @@ app:
   login-lockout-duration-ms: ${APP_LOGIN_LOCKOUT_DURATION_MS:900000}
   forgot-password-max-attempts: ${APP_FORGOT_PASSWORD_MAX_ATTEMPTS:3}
   forgot-password-window-ms: ${APP_FORGOT_PASSWORD_WINDOW_MS:3600000}
+  setup-token: ${APP_SETUP_TOKEN:}
+  setup-max-attempts: ${APP_SETUP_MAX_ATTEMPTS:5}
+  setup-window-ms: ${APP_SETUP_WINDOW_MS:900000}
   cors-allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   google-client-id: ${APP_GOOGLE_CLIENT_ID:}
 

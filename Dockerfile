@@ -1,4 +1,8 @@
-FROM eclipse-temurin:25.0.2_10-jre-noble
+# Pinned by digest, not just tag: a tag is a mutable pointer, so a rebuild could
+# silently pick up different bytes. Re-pin when intentionally upgrading the base:
+#   docker pull eclipse-temurin:<tag>
+#   docker inspect --format='{{index .RepoDigests 0}}' eclipse-temurin:<tag>
+FROM eclipse-temurin:25.0.2_10-jre-noble@sha256:a051234f864d7ab78bf0188c3c540ac06c711a3b566f00f246be37073cc99dce
 
 # Install curl for health check
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*

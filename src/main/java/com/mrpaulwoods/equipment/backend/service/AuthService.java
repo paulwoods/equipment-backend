@@ -69,7 +69,8 @@ public class AuthService {
     }
 
     public IssuedTokens login(String email, String password, String clientIp) {
-        if (loginRateLimiter.isBlocked(clientIp, email)) {
+        // Counts the attempt as it checks it; only a successful login gives it back.
+        if (!loginRateLimiter.tryAcquire(clientIp, email)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many login attempts");
         }
 
@@ -80,7 +81,6 @@ public class AuthService {
         if (existingUser.isEmpty() || existingUser.get().getPassword() == null) {
             // Equalize timing with the password-mismatch path so attackers cannot enumerate users.
             passwordEncoder.matches(password, dummyPasswordHash);
-            loginRateLimiter.recordFailure(clientIp, email);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
@@ -97,7 +97,6 @@ public class AuthService {
             loginRateLimiter.recordSuccess(clientIp, email);
             return new IssuedTokens(userDetails.getUsername(), accessToken, refreshToken.rawToken());
         } catch (AuthenticationException e) {
-            loginRateLimiter.recordFailure(clientIp, email);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
     }
